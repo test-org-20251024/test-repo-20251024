@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:;
+        connect-src 'self';
+    ">
+    <title>Crine Free - 描画アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .free-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #48c6ef, #6f86d6);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .customer-info {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .view-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .view-buttons button {
+            padding: 10px;
+            background: #f0f0f0;
+            color: #333;
+            font-size: 13px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .view-buttons button.active {
+            background: linear-gradient(135deg, #48c6ef, #6f86d6);
+            color: white;
+        }
+
+        .view-buttons button:hover {
+            transform: translateY(-2px);
+        }
+
+        .tools {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .tools button {
+            padding: 10px 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tools button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .color-palette {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .color-btn.active {
+            border-color: #333;
+            transform: scale(1.15);
+        }
+
+        .width-control {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .width-control label {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .width-control input {
+            width: 150px;
+        }
+
+        .width-control span {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 45px;
+        }
+
+        .canvas-container {
+            margin: 15px 0;
+            text-align: center;
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        #drawingCanvas {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            cursor: crosshair;
+            background: white;
+            touch-action: none;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .text-overlay {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: move;
+            border: 1px solid #ccc;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .text-overlay:hover {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .delete-text {
+            color: red;
+            cursor: pointer;
+            margin-left: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 2px 6px;
+            pointer-events: auto;
+            display: inline-block;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .text-input-box {
+            position: absolute;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            padding: 5px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .text-input-box input {
+            border: 1px solid #ddd;
+            padding: 5px;
+            font-size: 12px;
+            width: 150px;
+            border-radius: 3px;
+        }
+
+        .text-input-box button {
+            margin-left: 5px;
+            padding: 5px 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .bottom-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .bottom-tools button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .bottom-tools button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .undo-counter {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            color: #1976d2;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn {
+            background: #6c757d !important;
+            margin-top: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268 !important;
+        }
+
+        .ad-container {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .ad-content {
+            min-height: 90px;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+        }
+
+        @media (min-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .view-buttons {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            #drawingCanvas {
+                width: 500px;
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Crine Free 描画アプリ</h1>
+
+        <div class="ad-container">
+            <div class="ad-content">
+                <p style="color: #6c757d; font-size: 12px;">📢 広告スペース</p>
+            </div>
+        </div>
+
+        <div class="customer-info" id="customerInfo">
+            顧客ID: 読み込み中...
+        </div>
+
+        <div class="view-buttons">
+            <button class="view-btn active" onclick="changeView('front')">正面</button>
+            <button class="view-btn" onclick="changeView('back')">後ろ</button>
+            <button class="view-btn" onclick="changeView('left')">左側面</button>
+            <button class="view-btn" onclick="changeView('right')">右側面</button>
+            <button class="view-btn" onclick="changeView('top')">上から</button>
+            <button class="view-btn" onclick="changeView('diagonal-left')">斜め左</button>
+            <button class="view-btn" onclick="changeView('diagonal-right')">斜め右</button>
+        </div>
+
+        <div class="tools">
+            <button onclick="setTool('pen')">🖊️ ペン</button>
+            <button onclick="setTool('eraser')">🧹 消しゴム</button>
+            <button onclick="addText()">📝 テキスト追加</button>
+            
+            <div class="color-palette">
+                <div class="color-btn active" style="background: black;" onclick="setColor('black')"></div>
+                <div class="color-btn" style="background: red;" onclick="setColor('red')"></div>
+                <div class="color-btn" style="background: blue;" onclick="setColor('blue')"></div>
+                <div class="color-btn" style="background: green;" onclick="setColor('green')"></div>
+                <div class="color-btn" style="background: orange;" onclick="setColor('orange')"></div>
+                <div class="color-btn" style="background: purple;" onclick="setColor('purple')"></div>
+            </div>
+
+            <div class="width-control">
+                <label>太さ:</label>
+                <input type="range" id="lineWidth" min="1" max="25" value="3" oninput="updateLineWidth(this.value)">
+                <span id="widthValue">3px</span>
+            </div>
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="drawingCanvas" width="500" height="500"></canvas>
+        </div>
+
+        <div class="bottom-tools">
+            <button onclick="undo()">↶ 戻る</button>
+            <button onclick="redo()">↷ やり直し</button>
+            <span class="undo-counter" id="undoCounter">Undo: 0/5回</span>
+        </div>
+
+        <div class="bottom-tools">
+            <button onclick="saveDrawing()">💾 保存</button>
+            <button class="back-btn" id="backToMainBtn">← カルテに戻る</button>
+        </div>
+    </div>
+
+    <script>
+        // ===============================================
+        // ライセンス認証チェック（軽量版）
+        // ===============================================
+        function checkAuth() {
+            const authInfo = localStorage.getItem('salonLicense');
+            
+            if (!authInfo) {
+                alert('メインアプリから起動してください');
+                window.location.href = 'main.html';
+                return false;
+            }
+            
+            // 認証情報があればOK（詳細チェックは main.html に任せる）
+            return true;
+        }
+
+        // ===============================================
+        // 描画アプリ本体
+        // ===============================================
+        let canvas, ctx;
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = 'black';
+        let lineWidth = 3;
+        let currentView = 'front';
+        let undoStacks = {};
+        let redoStacks = {};
+        let customerId = '';
+        let textElements = {};
+        let longPressTimer = null;
+        let longPressStartX = 0;
+        let longPressStartY = 0;
+        let isDraggingText = false;
+        let currentTextElement = null;
+        const MAX_UNDO = 5;
+        const LONG_PRESS_DURATION = 500;
+
+        window.addEventListener('DOMContentLoaded', function() {
+            // 認証チェック（最優先）
+            if (!checkAuth()) {
+                return; // 認証失敗時はここで処理終了
+            }
+            
+            // 認証成功後、アプリ初期化
+            const params = new URLSearchParams(window.location.search);
+            customerId = params.get('id') || 'GUEST';
+            document.getElementById('customerInfo').textContent = `顧客ID: ${customerId} | Crine Free版：Undo 5回まで`;
+
+            canvas = document.getElementById('drawingCanvas');
+            ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right'];
+            views.forEach(view => {
+                undoStacks[view] = [];
+                redoStacks[view] = [];
+                textElements[view] = [];
+            });
+            
+            setupEventListeners();
+            
+            const saved = localStorage.getItem('drawing_' + customerId);
+            if (saved) {
+                loadDrawing();
+            } else {
+                drawHeadOutline(currentView);
+                saveState();
+            }
+            updateUndoCounter();
+        });
+
+        function setupEventListeners() {
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('mouseout', handleMouseUp);
+            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            canvas.addEventListener('touchend', handleTouchEnd);
+            
+            // 「カルテに戻る」ボタンのイベントリスナー
+            document.getElementById('backToMainBtn').addEventListener('click', backToMain);
+        }
+
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            longPressStartX = e.clientX - rect.left;
+            longPressStartY = e.clientY - rect.top;
+            
+            longPressTimer = setTimeout(() => {
+                showTextInput(longPressStartX, longPressStartY);
+            }, LONG_PRESS_DURATION);
+            
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function handleMouseMove(e) {
+            if (longPressTimer && isDrawing) {
+                const moved = Math.abs(e.clientX - canvas.getBoundingClientRect().left - longPressStartX) > 10 ||
+                             Math.abs(e.clientY - canvas.getBoundingClientRect().top - longPressStartY) > 10;
+                if (moved) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+            
+            if (!isDrawing || longPressTimer) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            ctx.strokeStyle = currentTool === 'eraser' ? 'white' : currentColor;
+            ctx.lineWidth = currentTool === 'eraser' ? lineWidth * 3 : lineWidth;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function handleMouseUp() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            if (isDrawing && !longPressTimer) {
+                isDrawing = false;
+                saveState();
+            }
+            isDrawing = false;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
+            
+            longPressStartX = touch.clientX - rect.left;
+            longPressStartY = touch.clientY - rect.top;
+            
+            longPressTimer = setTimeout(() => {
+                showTextInput(longPressStartX, longPressStartY);
+                isDrawing = false;
+            }, LONG_PRESS_DURATION);
+            
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            
+            if (longPressTimer && isDrawing) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const moved = Math.abs(touch.clientX - rect.left - longPressStartX) > 10 ||
+                             Math.abs(touch.clientY - rect.top - longPressStartY) > 10;
+                if (moved) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+            
+            if (!isDrawing || longPressTimer) return;
+            
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
+            
+            ctx.strokeStyle = currentTool === 'eraser' ? 'white' : currentColor;
+            ctx.lineWidth = currentTool === 'eraser' ? lineWidth * 3 : lineWidth;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            if (isDrawing && !longPressTimer) {
+                isDrawing = false;
+                saveState();
+            }
+            isDrawing = false;
+        }
+
+        function showTextInput(x, y) {
+            const container = document.getElementById('canvasContainer');
+            
+            const existing = document.querySelector('.text-input-box');
+            if (existing) existing.remove();
+            
+            const inputBox = document.createElement('div');
+            inputBox.className = 'text-input-box';
+            inputBox.style.left = x + 'px';
+            inputBox.style.top = y + 'px';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'メモ入力';
+            
+            const addBtn = document.createElement('button');
+            addBtn.textContent = '追加';
+            addBtn.onclick = () => {
+                if (input.value.trim()) {
+                    createTextElement(input.value, x, y);
+                }
+                inputBox.remove();
+            };
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '×';
+            cancelBtn.style.background = '#999';
+            cancelBtn.onclick = () => inputBox.remove();
+            
+            inputBox.appendChild(input);
+            inputBox.appendChild(addBtn);
+            inputBox.appendChild(cancelBtn);
+            container.appendChild(inputBox);
+            
+            input.focus();
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addBtn.click();
+                }
+            });
+        }
+
+        function createTextElement(text, x, y) {
+            const container = document.getElementById('canvasContainer');
+            
+            const textEl = document.createElement('div');
+            textEl.className = 'text-overlay';
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'delete-text';
+            deleteBtn.textContent = '×';
+            deleteBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteTextElement(textEl, text);
+            });
+            deleteBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteTextElement(textEl, text);
+            });
+            
+            textEl.appendChild(textSpan);
+            textEl.appendChild(deleteBtn);
+            textEl.style.position = 'absolute';
+            textEl.style.left = x + 'px';
+            textEl.style.top = y + 'px';
+            
+            makeTextDraggable(textEl);
+            container.appendChild(textEl);
+            
+            if (!textElements[currentView]) textElements[currentView] = [];
+            textElements[currentView].push({
+                text: text,
+                left: x + 'px',
+                top: y + 'px'
+            });
+        }
+
+        function deleteTextElement(element, text) {
+            if (textElements[currentView]) {
+                textElements[currentView] = textElements[currentView].filter(t => t.text !== text);
+            }
+            element.remove();
+        }
+
+        function makeTextDraggable(el) {
+            let startX, startY, initialLeft, initialTop;
+            let isDragging = false;
+            let hasMoved = false;
+            
+            const textContent = el.querySelector('span:not(.delete-text)');
+            
+            textContent.addEventListener('mousedown', dragStart);
+            textContent.addEventListener('touchstart', dragStart, {passive: false});
+            
+            function dragStart(e) {
+                hasMoved = false;
+                isDragging = true;
+                const rect = el.getBoundingClientRect();
+                const containerRect = document.getElementById('canvasContainer').getBoundingClientRect();
+                
+                if (e.type === 'mousedown') {
+                    startX = e.clientX;
+                    startY = e.clientY;
+                } else {
+                    e.preventDefault();
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                }
+                
+                initialLeft = rect.left - containerRect.left;
+                initialTop = rect.top - containerRect.top;
+                
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, {passive: false});
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchend', dragEnd);
+            }
+            
+            function drag(e) {
+                if (!isDragging) return;
+                
+                let clientX, clientY;
+                if (e.type === 'mousemove') {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                } else {
+                    e.preventDefault();
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+                
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+                
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    hasMoved = true;
+                }
+                
+                el.style.left = (initialLeft + deltaX) + 'px';
+                el.style.top = (initialTop + deltaY) + 'px';
+            }
+            
+            function dragEnd() {
+                isDragging = false;
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('touchmove', drag);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchend', dragEnd);
+            }
+        }
+
+        function drawHeadOutline(view) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'white';
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            if (view === 'front') {
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY, 90, 120, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX - 90, centerY, 30, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX - 90, centerY, 18, 11, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX + 90, centerY, 30, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX + 90, centerY, 18, 11, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY + 72, 9, 6, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                
+            } else if (view === 'diagonal-left') {
+                ctx.beginPath();
+                ctx.ellipse(centerX - 12, centerY, 84, 117, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX - 96, centerY, 18, 33, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX - 96, centerY, 11, 21, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 36, centerY - 18, 8, 0, Math.PI * 2);
+                ctx.arc(centerX + 18, centerY - 17, 7, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 36, centerY - 18, 4, 0, Math.PI * 2);
+                ctx.arc(centerX + 18, centerY - 17, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX + 9, centerY + 15);
+                ctx.quadraticCurveTo(centerX + 7, centerY + 21, centerX + 11, centerY + 24);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+            } else if (view === 'diagonal-right') {
+                ctx.beginPath();
+                ctx.ellipse(centerX + 12, centerY, 84, 117, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX + 96, centerY, 18, 33, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX + 96, centerY, 11, 21, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 18, centerY - 17, 7, 0, Math.PI * 2);
+                ctx.arc(centerX + 36, centerY - 18, 8, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 18, centerY - 17, 4, 0, Math.PI * 2);
+                ctx.arc(centerX + 36, centerY - 18, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX - 9, centerY + 15);
+                ctx.quadraticCurveTo(centerX - 7, centerY + 21, centerX - 11, centerY + 24);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        function changeView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (!undoStacks[view]) {
+                undoStacks[view] = [];
+                redoStacks[view] = [];
+                textElements[view] = [];
+            }
+            
+            if (undoStacks[view].length > 0) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = undoStacks[view][undoStacks[view].length - 1];
+            } else {
+                drawHeadOutline(view);
+                saveState();
+            }
+            
+            renderTextElements();
+            updateUndoCounter();
+        }
+
+        function addText() {
+            alert('キャンバスを長押し（0.5秒）してテキストを追加してください');
+        }
+
+        function renderTextElements() {
+            const container = document.getElementById('canvasContainer');
+            document.querySelectorAll('.text-overlay').forEach(el => el.remove());
+            
+            if (textElements[currentView]) {
+                textElements[currentView].forEach(data => {
+                    const textEl = document.createElement('div');
+                    textEl.className = 'text-overlay';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = data.text;
+                    
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'delete-text';
+                    deleteBtn.textContent = '×';
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteTextElement(textEl, data.text);
+                    });
+                    deleteBtn.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteTextElement(textEl, data.text);
+                    });
+                    
+                    textEl.appendChild(textSpan);
+                    textEl.appendChild(deleteBtn);
+                    textEl.style.position = 'absolute';
+                    textEl.style.left = data.left;
+                    textEl.style.top = data.top;
+                    makeTextDraggable(textEl);
+                    container.appendChild(textEl);
+                });
+            }
+        }
+
+        function saveState() {
+            if (!undoStacks[currentView]) undoStacks[currentView] = [];
+            
+            if (undoStacks[currentView].length >= MAX_UNDO + 1) {
+                undoStacks[currentView].shift();
+            }
+            
+            undoStacks[currentView].push(canvas.toDataURL());
+            redoStacks[currentView] = [];
+            updateUndoCounter();
+        }
+
+        function undo() {
+            if (!undoStacks[currentView] || undoStacks[currentView].length <= 1) {
+                alert('これ以上戻せません（Crine Free版：最大5回まで）');
+                return;
+            }
+            redoStacks[currentView].push(undoStacks[currentView].pop());
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = undoStacks[currentView][undoStacks[currentView].length - 1];
+            updateUndoCounter();
+        }
+
+        function redo() {
+            if (!redoStacks[currentView] || redoStacks[currentView].length === 0) {
+                alert('やり直せません');
+                return;
+            }
+            const state = redoStacks[currentView].pop();
+            undoStacks[currentView].push(state);
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = state;
+            updateUndoCounter();
+        }
+
+        function updateUndoCounter() {
+            const count = undoStacks[currentView] ? Math.max(0, undoStacks[currentView].length - 1) : 0;
+            document.getElementById('undoCounter').textContent = `Undo: ${count}/${MAX_UNDO}回`;
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+        }
+
+        function setColor(color) {
+            currentColor = color;
+            currentTool = 'pen';
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function updateLineWidth(value) {
+            lineWidth = parseInt(value);
+            document.getElementById('widthValue').textContent = value + 'px';
+        }
+
+        function saveDrawing() {
+            const data = {
+                customerId: customerId,
+                drawings: undoStacks,
+                textElements: textElements,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('drawing_' + customerId, JSON.stringify(data));
+            alert('描画を保存しました！');
+        }
+
+        function loadDrawing() {
+            const saved = localStorage.getItem('drawing_' + customerId);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.drawings) {
+                    undoStacks = data.drawings;
+                    redoStacks = {};
+                    Object.keys(undoStacks).forEach(view => {
+                        redoStacks[view] = [];
+                    });
+                    
+                    if (undoStacks[currentView] && undoStacks[currentView].length > 0) {
+                        const img = new Image();
+                        img.onload = function() {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0);
+                        };
+                        img.src = undoStacks[currentView][undoStacks[currentView].length - 1];
+                    }
+                    updateUndoCounter();
+                }
+                
+                if (data.textElements) {
+                    textElements = data.textElements;
+                    renderTextElements();
+                }
+            }
+        }
+
+        function backToMain() {
+            saveDrawing();
+            window.location.href = 'main.html?id=' + customerId;
+        }
+    </script>
+</body>
+</html>
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX - 90, centerY, 18, 30, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX - 90, centerY, 11, 18, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX + 90, centerY, 18, 30, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(centerX + 90, centerY, 11, 18, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 30, centerY - 18, 9, 0, Math.PI * 2);
+                ctx.arc(centerX + 30, centerY - 18, 9, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(centerX - 30, centerY - 18, 5, 0, Math.PI * 2);
+                ctx.arc(centerX + 30, centerY - 18, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY + 12);
+                ctx.lineTo(centerX - 5, centerY + 23);
+                ctx.lineTo(centerX + 5, centerY + 23);
+                ctx.closePath();
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.stroke();
+                
+            } else if (view === 'back') {
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY, 90, 120, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX - 96, centerY + 6, 15, 27, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(centerX + 96, centerY + 6, 15, 27, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+            } else if (view === 'left' || view === 'right') {
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY, 60, 120, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                const earX = view === 'left' ? centerX - 60 : centerX + 60;
+                ctx.beginPath();
+                ctx.ellipse(earX, centerY, 21, 36, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(earX, centerY, 12, 24, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                const noseDir = view === 'left' ? 1 : -1;
+                ctx.beginPath();
+                ctx.moveTo(centerX + (noseDir * 48), centerY + 6);
+                ctx.lineTo(centerX + (noseDir * 63), centerY + 18);
+                ctx.lineTo(centerX + (noseDir * 48), centerY + 24);
+                ctx.closePath();
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.stroke();
+                
+            } else if (view === 'top') {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 90, 0, Math.PI * 2);
+                ctx.fill();
