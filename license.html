@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data:;
+    ">
+    <title>Crine - ライセンス認証</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 480px;
+            width: 100%;
+            padding: 40px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .logo p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="text"]::placeholder {
+            color: #aaa;
+            text-transform: none;
+            letter-spacing: normal;
+            font-family: inherit;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+            margin-top: 12px;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .alert {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .plan-info {
+            background: #f9f9f9;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .plan-info h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .plan-info ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .plan-info ul li {
+            padding: 6px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .plan-info ul li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 30px 0;
+        }
+
+        .free-trial {
+            text-align: center;
+        }
+
+        .free-trial p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .logo h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>Crine</h1>
+            <p>美容師向け電子カルテシステム</p>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+        <div class="alert alert-success" id="alertSuccess"></div>
+
+        <div class="plan-info" id="planInfo">
+            <h3 id="planName"></h3>
+            <ul id="planFeatures"></ul>
+        </div>
+
+        <form id="licenseForm">
+            <div class="form-group">
+                <label for="licenseKey">ライセンスキー</label>
+                <input 
+                    type="text" 
+                    id="licenseKey" 
+                    placeholder="例: BASIC-1234-5678-9ABC"
+                    maxlength="23"
+                    required
+                >
+                <div class="help-text">
+                    ライセンスキーは「プラン名-XXXX-XXXX-XXXX」の形式です
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">認証する</button>
+        </form>
+
+        <div class="divider"></div>
+
+        <div class="free-trial">
+            <p>まずは無料でお試しいただけます</p>
+            <button class="btn btn-secondary" id="freeTrialBtn">無料版を始める</button>
+        </div>
+    </div>
+
+    <script>
+        // プラン情報の定義
+        const PLANS = {
+            FREE: {
+                name: 'Crine Free',
+                features: [
+                    '顧客管理 10名まで',
+                    '基本的なカルテ機能',
+                    '頭部イラスト描画（シンプル2D）',
+                    '手動バックアップ'
+                ],
+                validMonths: 12
+            },
+            BASIC: {
+                name: 'Crine Basic',
+                features: [
+                    '顧客管理 50名まで',
+                    '全カルテ機能',
+                    '頭部イラスト描画（シンプル2D）',
+                    'LINE連携機能',
+                    '広告なし',
+                    '手動バックアップ'
+                ],
+                validMonths: 1
+            },
+            PRO: {
+                name: 'Capilus Pro',
+                features: [
+                    '顧客管理 無制限',
+                    '全カルテ機能',
+                    '頭部イラスト描画（リアル2D）',
+                    'LINE連携機能',
+                    '自動クラウドバックアップ',
+                    '広告なし',
+                    '追加アプリ利用可'
+                ],
+                validMonths: 1
+            },
+            PREMIUM: {
+                name: 'Crinis Premium',
+                features: [
+                    '顧客管理 無制限',
+                    '全カルテ機能',
+                    '頭部イラスト描画（リアル2D）',
+                    'LINE連携機能',
+                    '自動クラウドバックアップ',
+                    'チーム機能（複数スタッフ）',
+                    'データ共有',
+                    '優先サポート',
+                    '広告なし',
+                    '全追加アプリ利用可'
+                ],
+                validMonths: 1
+            }
+        };
+
+        // DOM要素
+        const form = document.getElementById('licenseForm');
+        const licenseKeyInput = document.getElementById('licenseKey');
+        const alertError = document.getElementById('alertError');
+        const alertSuccess = document.getElementById('alertSuccess');
+        const planInfo = document.getElementById('planInfo');
+        const planName = document.getElementById('planName');
+        const planFeatures = document.getElementById('planFeatures');
+        const freeTrialBtn = document.getElementById('freeTrialBtn');
+
+        // ライセンスキーの形式チェック
+        function validateLicenseKeyFormat(key) {
+            const regex = /^(FREE|BASIC|PRO|PREMIUM)-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+            return regex.test(key);
+        }
+
+        // プラン名の抽出
+        function extractPlan(key) {
+            return key.split('-')[0];
+        }
+
+        // チェックサムの計算（簡易的な検証）
+        function calculateChecksum(key) {
+            let sum = 0;
+            for (let i = 0; i < key.length; i++) {
+                sum += key.charCodeAt(i);
+            }
+            return sum % 256;
+        }
+
+        // ライセンスキーの検証
+        function verifyLicenseKey(key) {
+            // 形式チェック
+            if (!validateLicenseKeyFormat(key)) {
+                return { valid: false, error: 'ライセンスキーの形式が正しくありません' };
+            }
+
+            // プラン名の抽出
+            const plan = extractPlan(key);
+            
+            // プランの存在チェック
+            if (!PLANS[plan]) {
+                return { valid: false, error: '無効なプラン名です' };
+            }
+
+            // 簡易的なチェックサム検証（実際にはサーバー側で検証すべき）
+            const checksum = calculateChecksum(key);
+            
+            // 有効期限の計算
+            const validUntil = new Date();
+            validUntil.setMonth(validUntil.getMonth() + PLANS[plan].validMonths);
+
+            return {
+                valid: true,
+                plan: plan.toLowerCase(),
+                planName: PLANS[plan].name,
+                validUntil: validUntil.toISOString()
+            };
+        }
+
+        // プラン情報の表示
+        function showPlanInfo(plan) {
+            const planData = PLANS[plan.toUpperCase()];
+            planName.textContent = planData.name;
+            
+            planFeatures.innerHTML = '';
+            planData.features.forEach(feature => {
+                const li = document.createElement('li');
+                li.textContent = feature;
+                planFeatures.appendChild(li);
+            });
+
+            planInfo.style.display = 'block';
+        }
+
+        // アラート表示
+        function showAlert(type, message) {
+            const alert = type === 'error' ? alertError : alertSuccess;
+            alert.textContent = message;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        // 認証情報の保存
+        function saveAuthInfo(authData) {
+            const authInfo = {
+                licenseKey: authData.licenseKey,
+                plan: authData.plan,
+                planName: authData.planName,
+                validUntil: authData.validUntil,
+                verified: true,
+                verifiedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('salonLicense', JSON.stringify(authInfo));
+        }
+
+        // フォーム送信処理
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const key = licenseKeyInput.value.trim().toUpperCase();
+
+            // 検証実行
+            const result = verifyLicenseKey(key);
+
+            if (!result.valid) {
+                showAlert('error', result.error);
+                planInfo.style.display = 'none';
+                return;
+            }
+
+            // 認証成功
+            showPlanInfo(result.plan);
+            showAlert('success', '認証に成功しました！カルテシステムを起動します...');
+
+            // 認証情報を保存
+            saveAuthInfo({
+                licenseKey: key,
+                plan: result.plan,
+                planName: result.planName,
+                validUntil: result.validUntil
+            });
+
+            // 2秒後にメインアプリへリダイレクト
+            setTimeout(() => {
+                window.location.href = 'main.html';
+            }, 2000);
+        });
+
+        // 無料版ボタン
+        freeTrialBtn.addEventListener('click', function() {
+            // FREE版の自動ライセンスキー生成（デモ用）
+            const freeKey = 'FREE-' + 
+                            Math.random().toString(36).substr(2, 4).toUpperCase() + '-' +
+                            Math.random().toString(36).substr(2, 4).toUpperCase() + '-' +
+                            Math.random().toString(36).substr(2, 4).toUpperCase();
+
+            licenseKeyInput.value = freeKey;
+            
+            // 自動認証
+            const result = verifyLicenseKey(freeKey);
+            showPlanInfo(result.plan);
+            showAlert('success', '無料版を起動します...');
+
+            saveAuthInfo({
+                licenseKey: freeKey,
+                plan: result.plan,
+                planName: result.planName,
+                validUntil: result.validUntil
+            });
+
+            setTimeout(() => {
+                window.location.href = 'main.html';
+            }, 2000);
+        });
+
+        // 入力時の自動フォーマット（ハイフン自動挿入）
+        licenseKeyInput.addEventListener('input', function(e) {
+            let value = e.target.value.toUpperCase().replace(/-/g, '');
+            let formatted = '';
+
+            if (value.length > 0) {
+                // プラン名部分（最初のハイフンまで）
+                const planMatch = value.match(/^(FREE|BASIC|PRO|PREMIUM)/);
+                if (planMatch) {
+                    formatted = planMatch[1];
+                    value = value.substring(planMatch[1].length);
+
+                    if (value.length > 0) {
+                        formatted += '-';
+                        formatted += value.substring(0, 4);
+                        if (value.length > 4) {
+                            formatted += '-';
+                            formatted += value.substring(4, 8);
+                            if (value.length > 8) {
+                                formatted += '-';
+                                formatted += value.substring(8, 12);
+                            }
+                        }
+                    }
+                } else {
+                    formatted = value;
+                }
+            }
+
+            e.target.value = formatted;
+        });
+
+        // ページ読み込み時：既に認証済みかチェック
+        window.addEventListener('DOMContentLoaded', function() {
+            const authInfo = localStorage.getItem('salonLicense');
+            
+            if (authInfo) {
+                try {
+                    const auth = JSON.parse(authInfo);
+                    
+                    // 有効期限チェック
+                    if (new Date(auth.validUntil) > new Date()) {
+                        // 有効なライセンスがある場合、自動的にメインアプリへ
+                        showAlert('success', '認証済みです。カルテシステムへ移動します...');
+                        setTimeout(() => {
+                            window.location.href = 'main.html';
+                        }, 1500);
+                    } else {
+                        // 期限切れの場合、情報をクリア
+                        localStorage.removeItem('salonLicense');
+                        showAlert('error', 'ライセンスの有効期限が切れています。新しいライセンスキーを入力してください。');
+                    }
+                } catch (e) {
+                    // JSONパースエラーの場合、情報をクリア
+                    localStorage.removeItem('salonLicense');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
