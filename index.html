@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    connect-src 'self';
+">
+<title>Crine Free - メインカルテ</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 10px; }
+.container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden; }
+.header { background: linear-gradient(45deg, #48c6ef, #6f86d6); color: white; padding: 25px; text-align: center; position: relative; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 5px; }
+.header p { font-size: 14px; opacity: 0.9; }
+.free-badge { background: rgba(255,255,255,0.3); padding: 5px 15px; border-radius: 20px; display: inline-block; margin-top: 8px; font-size: 13px; }
+.license-info { position: absolute; top: 10px; right: 15px; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 15px; font-size: 12px; }
+.license-info-mobile { display: none; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 15px; font-size: 11px; margin-top: 10px; text-align: center; }
+.logout-btn { background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 12px; border-radius: 12px; cursor: pointer; font-size: 11px; margin-left: 10px; }
+.logout-btn:hover { background: rgba(255,255,255,0.4); }
+.search-bar { background: rgba(255,255,255,0.15); padding: 20px 25px; }
+.search-input { width: 100%; padding: 12px 20px; border: none; border-radius: 25px; font-size: 16px; }
+.sidebar { width: 100%; background: white; padding: 20px; }
+.section { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); border-left: 4px solid #667eea; }
+.section h3 { color: #2d3436; margin-bottom: 20px; font-size: 18px; font-weight: 700; }
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2d3436; font-size: 14px; }
+.form-group input, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; font-family: inherit; }
+.form-group input:focus, .form-group textarea:focus { outline: none; border-color: #667eea; }
+.form-row { display: flex; gap: 15px; }
+.form-row .form-group { flex: 1; }
+.menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+.menu-checkbox { display: flex; align-items: center; gap: 8px; padding: 12px; background: #f8f9fa; border-radius: 8px; cursor: pointer; }
+.menu-checkbox input { width: 20px; height: 20px; cursor: pointer; }
+.menu-checkbox label { cursor: pointer; font-weight: 600; font-size: 14px; }
+.detail-box { background: #f0f3ff; border: 2px solid #667eea; border-radius: 12px; padding: 15px; margin-top: 15px; }
+.detail-box h4 { color: #667eea; font-size: 15px; margin-bottom: 12px; }
+.rod-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+.action-buttons { display: flex; gap: 15px; margin: 30px 0; flex-wrap: wrap; }
+.btn { flex: 1; min-width: 150px; padding: 15px; border: none; border-radius: 25px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+.btn-primary { background: #00b894; color: white; }
+.btn-secondary { background: #74b9ff; color: white; }
+.btn-warning { background: #fdcb6e; color: white; }
+.btn-danger { background: #ff7675; color: white; }
+.btn-drawing { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+.customer-item { padding: 15px; border: 2px solid #ddd; border-radius: 12px; margin-bottom: 12px; cursor: pointer; background: white; transition: all 0.3s ease; }
+.customer-item:hover { border-color: #667eea; background: #f8f9ff; transform: translateX(5px); }
+.storage-info { background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; font-weight: 600; color: #856404; }
+.limit-warning { background: #f8d7da; border: 2px solid #f5c6cb; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; font-weight: 600; color: #721c24; }
+.ad-container { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; padding: 20px; margin: 20px 0; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+.ad-label { font-size: 11px; color: #666; margin-bottom: 12px; text-align: center; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+.ad-content { background: white; border-radius: 12px; padding: 20px; min-height: 250px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; }
+@media (max-width: 768px) {
+    .license-info { display: none; }
+    .license-info-mobile { display: block; }
+    .form-row { flex-direction: column; }
+    .menu-grid { grid-template-columns: 1fr; }
+    .rod-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div class="license-info" id="licenseInfoDesktop">
+<span id="planNameDesktop">Free版</span>
+<button class="logout-btn" onclick="logout()">ログアウト</button>
+</div>
+<h1>💇‍♀️ Crine Free</h1>
+<p>美容師向け電子カルテシステム</p>
+<div class="free-badge" id="planBadge">Crine Free版 - 顧客10名まで | ブラウザ保存20回分</div>
+<div class="license-info-mobile" id="licenseInfoMobile">
+<span id="planNameMobile">Free版</span>
+<button class="logout-btn" onclick="logout()">ログアウト</button>
+</div>
+</div>
+<div class="search-bar">
+<input type="text" class="search-input" id="globalSearch" placeholder="お客様の名前またはIDで検索...">
+</div>
+<div class="sidebar">
+<div class="storage-info" id="storageInfo">登録顧客数: 0/10 | ブラウザ保存: 0/20回分</div>
+<div id="limitWarning" class="limit-warning" style="display:none">⚠️ Free版の上限（10名）に達しています</div>
+<div class="ad-container">
+<div class="ad-label">スポンサー広告</div>
+<div class="ad-content">
+<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXX" data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+</div>
+</div>
+<div class="section">
+<h3>👤 お客様情報</h3>
+<div class="form-group"><label>顧客ID</label><input type="text" id="customerId" readonly style="background:#f0f0f0"></div>
+<div class="form-group"><label>お名前 *</label><input type="text" id="customerName" placeholder="山田 花子"></div>
+<div class="form-row">
+<div class="form-group"><label>年齢</label><input type="number" id="customerAge" placeholder="25"></div>
+<div class="form-group"><label>来店日 *</label><input type="date" id="visitDate"></div>
+</div>
+<div class="form-group"><label>担当スタイリスト</label><input type="text" id="stylistName" placeholder="田中"></div>
+</div>
+<div class="section">
+<h3>✂️ 施術メニュー</h3>
+<div class="menu-grid">
+<div class="menu-checkbox"><input type="checkbox" id="menuCut" value="カット"><label for="menuCut">カット</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuColor" value="カラー"><label for="menuColor">カラー</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuPerm" value="パーマ"><label for="menuPerm">パーマ</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuTreatment" value="トリートメント"><label for="menuTreatment">トリートメント</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuStraight" value="縮毛矯正"><label for="menuStraight">縮毛矯正</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuHeadSpa" value="ヘッドスパ"><label for="menuHeadSpa">ヘッドスパ</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuSet" value="セット"><label for="menuSet">セット</label></div>
+<div class="menu-checkbox"><input type="checkbox" id="menuOther" value="その他"><label for="menuOther">その他</label></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>料金（円）</label><input type="number" id="servicePrice" placeholder="8000"></div>
+<div class="form-group"><label>施術時間（分）</label><input type="number" id="serviceTime" placeholder="120"></div>
+</div>
+</div>
+<div class="section">
+<h3>🎨 カラー情報</h3>
+<div class="form-group"><label>カラー1</label><input type="text" id="color1" placeholder="例: アッシュブラウン 7レベル"></div>
+<div class="form-group"><label>カラー2</label><input type="text" id="color2" placeholder="例: ハイライト ベージュ"></div>
+<div class="form-group"><label>カラー備考</label><textarea id="colorNotes" rows="3" placeholder="例: 根元は暗めに、毛先は明るめ"></textarea></div>
+</div>
+<div class="section">
+<h3>✨ トリートメント情報</h3>
+<div class="form-group"><label>トリートメント備考</label><textarea id="treatmentNotes" rows="3"></textarea></div>
+</div>
+<div class="section">
+<h3>📏 縮毛矯正情報</h3>
+<div class="form-group"><label>薬液1</label><input type="text" id="straightDrug1"></div>
+<div class="form-group"><label>薬液2</label><input type="text" id="straightDrug2"></div>
+<div class="form-group"><label>縮毛矯正備考</label><textarea id="straightNotes" rows="3"></textarea></div>
+</div>
+<div class="section">
+<h3>💆 ヘッドスパ情報</h3>
+<div class="form-group"><label>ヘッドスパ備考</label><textarea id="spaNote" rows="3"></textarea></div>
+</div>
+<div class="section">
+<h3>🌀 パーマ詳細記録</h3>
+<div class="form-group"><label>💊 薬剤</label><textarea id="chemical" rows="2"></textarea></div>
+<div class="detail-box">
+<h4>🎯 ロッド詳細（部位別16箇所）</h4>
+<div class="rod-grid">
+<div class="form-group"><label>前髪</label><input type="text" id="rod0"></div>
+<div class="form-group"><label>フロント</label><input type="text" id="rod1"></div>
+<div class="form-group"><label>右サイド上</label><input type="text" id="rod2"></div>
+<div class="form-group"><label>右サイド下</label><input type="text" id="rod3"></div>
+<div class="form-group"><label>左サイド上</label><input type="text" id="rod4"></div>
+<div class="form-group"><label>左サイド下</label><input type="text" id="rod5"></div>
+<div class="form-group"><label>トップ</label><input type="text" id="rod6"></div>
+<div class="form-group"><label>クラウン</label><input type="text" id="rod7"></div>
+<div class="form-group"><label>バック</label><input type="text" id="rod8"></div>
+<div class="form-group"><label>右バックサイド上</label><input type="text" id="rod9"></div>
+<div class="form-group"><label>右バックサイド下</label><input type="text" id="rod10"></div>
+<div class="form-group"><label>左バックサイド上</label><input type="text" id="rod11"></div>
+<div class="form-group"><label>左バックサイド下</label><input type="text" id="rod12"></div>
+<div class="form-group"><label>ネープ</label><input type="text" id="rod13"></div>
+<div class="form-group"><label>右ネープ</label><input type="text" id="rod14"></div>
+<div class="form-group"><label>左ネープ</label><input type="text" id="rod15"></div>
+</div>
+</div>
+<div class="form-group"><label>放置時間</label><input type="text" id="processTime"></div>
+<div class="form-group"><label>仕上がり状態</label><input type="text" id="finishState"></div>
+</div>
+<div class="section">
+<h3>📝 備考</h3>
+<div class="form-group"><label>備考1</label><textarea id="notes1" rows="3"></textarea></div>
+<div class="form-group"><label>備考2</label><textarea id="notes2" rows="3"></textarea></div>
+</div>
+<div class="action-buttons">
+<button class="btn btn-primary" id="saveBtn">💾 保存</button>
+<button class="btn btn-drawing" id="drawingBtn">🎨 描画アプリ</button>
+<button class="btn btn-secondary" id="backupBtn">📥 バックアップDL</button>
+<button class="btn btn-warning" id="restoreBtn">📤 復元</button>
+<button class="btn btn-secondary" id="newBtn">➕ 新規顧客</button>
+<button class="btn btn-danger" id="deleteBtn">🗑️ 削除</button>
+</div>
+<div class="section">
+<h3>📋 顧客一覧</h3>
+<div class="form-group"><input type="text" id="customerSearch" class="search-input" placeholder="顧客名で検索..."></div>
+<div id="customerList" style="max-height:400px;overflow-y:auto"></div>
+</div>
+</div>
+</div>
+<input type="file" id="restoreFile" accept=".json" style="display:none">
+<script>
+// ===============================================
+// ライセンス認証チェック（最優先実行）
+// ===============================================
+function checkAuth() {
+    const authInfo = localStorage.getItem('salonLicense');
+    
+    if (!authInfo) {
+        alert('ライセンス認証が必要です。認証ページへ移動します。');
+        window.location.href = 'license.html';
+        return false;
+    }
+    
+    try {
+        const auth = JSON.parse(authInfo);
+        
+        // 有効期限チェック
+        if (new Date(auth.validUntil) < new Date()) {
+            alert('ライセンスの有効期限が切れています。再認証が必要です。');
+            localStorage.removeItem('salonLicense');
+            window.location.href = 'license.html';
+            return false;
+        }
+        
+        // プラン情報を表示
+        displayLicenseInfo(auth);
+        
+        return true;
+    } catch (e) {
+        console.error('認証エラー:', e);
+        localStorage.removeItem('salonLicense');
+        window.location.href = 'license.html';
+        return false;
+    }
+}
+
+function displayLicenseInfo(auth) {
+    const planDisplay = auth.planName || 'Free版';
+    const validDate = new Date(auth.validUntil).toLocaleDateString('ja-JP');
+    
+    document.getElementById('planNameDesktop').textContent = planDisplay + ' (有効期限: ' + validDate + ')';
+    document.getElementById('planNameMobile').textContent = planDisplay;
+    
+    // プラン別のバッジ更新
+    const badge = document.getElementById('planBadge');
+    if (auth.plan === 'free') {
+        badge.textContent = 'FREE版 - 顧客10名まで | ブラウザ保存20回分';
+    } else if (auth.plan === 'basic') {
+        badge.textContent = 'BASIC版 - 顧客50名まで | LINE連携対応';
+    } else if (auth.plan === 'pro') {
+        badge.textContent = 'PRO版 - 顧客無制限 | リアル2Dイラスト | 自動同期';
+    } else if (auth.plan === 'premium') {
+        badge.textContent = 'PREMIUM版 - 全機能 | チーム対応 | 優先サポート';
+    }
+}
+
+function logout() {
+    if (!confirm('ログアウトしますか？')) return;
+    
+    localStorage.removeItem('salonLicense');
+    alert('ログアウトしました');
+    window.location.href = 'license.html';
+}
+
+// ===============================================
+// メインシステム
+// ===============================================
+let customers = [];
+let currentCustomerId = null;
+const MAX_CUSTOMERS = 10;
+const MAX_BROWSER_STORAGE = 20;
+
+const rodPositions = ['前髪','フロント','右サイド上','右サイド下','左サイド上','左サイド下','トップ','クラウン','バック','右バックサイド上','右バックサイド下','左バックサイド上','左バックサイド下','ネープ','右ネープ','左ネープ'];
+
+window.onload = function() {
+    // 認証チェック（最優先）
+    if (!checkAuth()) {
+        return; // 認証失敗時はここで処理終了
+    }
+    
+    // 認証成功後、システム初期化
+    initSystem();
+    loadAdScript();
+};
+
+function loadAdScript() {
+    /* Google AdSense使用時は下記コメント解除
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX';
+    s.crossOrigin = 'anonymous';
+    document.head.appendChild(s);
+    s.onload = () => {
+        try {
+            (adsbygoogle = window.adsbygoogle || []).push({});
+        } catch(e) {
+            console.error('AdSense読み込みエラー', e);
+        }
+    };
+    */
+}
+
+function initSystem() {
+    generateCustomerId();
+    setTodayDate();
+    loadCustomers();
+    updateDisplay();
+    setupEventListeners();
+}
+
+function setupEventListeners() {
+    document.getElementById('saveBtn').onclick = saveCustomer;
+    document.getElementById('drawingBtn').onclick = openDrawing;
+    document.getElementById('backupBtn').onclick = downloadBackup;
+    document.getElementById('restoreBtn').onclick = () => document.getElementById('restoreFile').click();
+    document.getElementById('restoreFile').onchange = restoreFromFile;
+    document.getElementById('newBtn').onclick = newCustomer;
+    document.getElementById('deleteBtn').onclick = deleteCustomer;
+    document.getElementById('customerSearch').oninput = function() { displayCustomerList(this.value); };
+    document.getElementById('globalSearch').oninput = function() { displayCustomerList(this.value); };
+}
+
+function generateCustomerId() {
+    const id = 'C' + Date.now().toString().slice(-8);
+    document.getElementById('customerId').value = id;
+    currentCustomerId = id;
+}
+
+function setTodayDate() {
+    document.getElementById('visitDate').value = new Date().toISOString().split('T')[0];
+}
+
+function loadCustomers() {
+    const s = localStorage.getItem('salonCustomersFree');
+    if (s) {
+        customers = JSON.parse(s);
+        if (customers.length > MAX_BROWSER_STORAGE) {
+            customers = customers.slice(-MAX_BROWSER_STORAGE);
+        }
+    }
+}
+
+function saveToLocalStorage() {
+    localStorage.setItem('salonCustomersFree', JSON.stringify(customers.slice(-MAX_BROWSER_STORAGE)));
+}
+
+async function saveCustomer() {
+    const name = document.getElementById('customerName').value.trim();
+    const date = document.getElementById('visitDate').value;
+    
+    if (!name || !date) {
+        alert('必須項目（お名前・来店日）を入力してください');
+        return;
+    }
+    
+    const idx = customers.findIndex(c => c.id === currentCustomerId);
+    
+    if (idx === -1 && customers.length >= MAX_CUSTOMERS) {
+        alert('Free版は最大10名までです。Basic版へのアップグレードをご検討ください。');
+        return;
+    }
+    
+    const menus = [];
+    ['menuCut','menuColor','menuPerm','menuTreatment','menuStraight','menuHeadSpa','menuSet','menuOther'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb.checked) menus.push(cb.value);
+    });
+    
+    const rods = rodPositions.map((p, i) => ({
+        position: p,
+        rod: document.getElementById('rod' + i).value
+    }));
+    
+    const drawings = await getDrawingData(currentCustomerId);
+    
+    const data = {
+        id: currentCustomerId,
+        name,
+        age: document.getElementById('customerAge').value,
+        date,
+        stylist: document.getElementById('stylistName').value,
+        menus,
+        price: document.getElementById('servicePrice').value,
+        time: document.getElementById('serviceTime').value,
+        color1: document.getElementById('color1').value,
+        color2: document.getElementById('color2').value,
+        colorNotes: document.getElementById('colorNotes').value,
+        treatmentNotes: document.getElementById('treatmentNotes').value,
+        straightDrug1: document.getElementById('straightDrug1').value,
+        straightDrug2: document.getElementById('straightDrug2').value,
+        straightNotes: document.getElementById('straightNotes').value,
+        spaNote: document.getElementById('spaNote').value,
+        chemical: document.getElementById('chemical').value,
+        rods,
+        processTime: document.getElementById('processTime').value,
+        finishState: document.getElementById('finishState').value,
+        notes1: document.getElementById('notes1').value,
+        notes2: document.getElementById('notes2').value,
+        timestamp: new Date().toISOString(),
+        drawings
+    };
+    
+    if (idx >= 0) {
+        customers[idx] = data;
+    } else {
+        customers.push(data);
+    }
+    
+    saveToLocalStorage();
+    updateDisplay();
+    alert('保存完了しました！');
+    
+    if (confirm('バックアップをダウンロードしますか？')) {
+        downloadBackup();
+    }
+}
+
+async function getDrawingData(id) {
+    const s = localStorage.getItem('drawing_' + id);
+    if (!s) return null;
+    
+    const d = JSON.parse(s);
+    if (!d.drawings) return null;
+    
+    const r = {};
+    ['front','back','left','right','top','diagonal-left','diagonal-right','diagonal-left-back','diagonal-right-back'].forEach(v => {
+        if (d.drawings[v] && d.drawings[v].length > 0) {
+            r[v] = d.drawings[v][d.drawings[v].length - 1];
+        }
+    });
+    
+    return r;
+}
+
+function openDrawing() {
+    if (!currentCustomerId) {
+        alert('先に顧客情報を保存してください');
+        return;
+    }
+    window.location.href = 'drawing.html?id=' + currentCustomerId;
+}
+
+function downloadBackup() {
+    if (!customers.length) {
+        alert('バックアップするデータがありません');
+        return;
+    }
+    
+    const authInfo = JSON.parse(localStorage.getItem('salonLicense') || '{}');
+    
+    const b = {
+        version: 'free',
+        brand: '髪ノート',
+        plan: authInfo.plan || 'free',
+        exportDate: new Date().toISOString(),
+        totalRecords: customers.length,
+        customers
+    };
+    
+    const blob = new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+                a.download = 'crine_free_backup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert('バックアップ完了！');
+}
+
+function restoreFromFile(e) {
+    const f = e.target.files[0];
+    if (!f) return;
+    
+    if (!confirm('現在のデータは上書きされます。復元しますか？')) {
+        e.target.value = '';
+        return;
+    }
+    
+    const r = new FileReader();
+    r.onload = function(ev) {
+        try {
+            const b = JSON.parse(ev.target.result);
+            
+            if (!b.customers || !Array.isArray(b.customers)) {
+                alert('無効なバックアップファイルです');
+                return;
+            }
+            
+            customers = b.customers;
+            saveToLocalStorage();
+            
+            // 描画データも復元
+            customers.forEach(c => {
+                if (c.drawings) {
+                    const d = {
+                        customerId: c.id,
+                        drawings: {},
+                        timestamp: c.timestamp
+                    };
+                    
+                    ['front','back','left','right','top','diagonal-left','diagonal-right','diagonal-left-back','diagonal-right-back'].forEach(v => {
+                        if (c.drawings[v]) {
+                            d.drawings[v] = [c.drawings[v]];
+                        }
+                    });
+                    
+                    localStorage.setItem('drawing_' + c.id, JSON.stringify(d));
+                }
+            });
+            
+            updateDisplay();
+            alert('復元完了！');
+        } catch (err) {
+            console.error('復元エラー:', err);
+            alert('ファイルの読み込みに失敗しました');
+        }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+}
+
+function newCustomer() {
+    if (!confirm('新規顧客を作成しますか？現在の編集内容は失われます。')) return;
+    
+    currentCustomerId = null;
+    
+    document.querySelectorAll('input[type="text"],input[type="number"],input[type="date"],textarea').forEach(i => {
+        if (i.id !== 'customerId' && i.id !== 'customerSearch' && i.id !== 'globalSearch') {
+            i.value = '';
+        }
+    });
+    
+    document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+    
+    generateCustomerId();
+    setTodayDate();
+}
+
+function deleteCustomer() {
+    if (!currentCustomerId) {
+        alert('削除する顧客を選択してください');
+        return;
+    }
+    
+    const c = customers.find(x => x.id === currentCustomerId);
+    if (!c) {
+        alert('顧客データが見つかりません');
+        return;
+    }
+    
+    if (!confirm(c.name + '様のデータを削除しますか？この操作は取り消せません。')) return;
+    
+    customers = customers.filter(x => x.id !== currentCustomerId);
+    localStorage.removeItem('drawing_' + currentCustomerId);
+    saveToLocalStorage();
+    updateDisplay();
+    alert('削除しました');
+    newCustomer();
+}
+
+function loadCustomerData(d) {
+    currentCustomerId = d.id;
+    document.getElementById('customerId').value = d.id || '';
+    document.getElementById('customerName').value = d.name || '';
+    document.getElementById('customerAge').value = d.age || '';
+    document.getElementById('visitDate').value = d.date || '';
+    document.getElementById('stylistName').value = d.stylist || '';
+    
+    document.querySelectorAll('input[type="checkbox"]').forEach(c => {
+        c.checked = d.menus && d.menus.includes(c.value);
+    });
+    
+    document.getElementById('servicePrice').value = d.price || '';
+    document.getElementById('serviceTime').value = d.time || '';
+    document.getElementById('color1').value = d.color1 || '';
+    document.getElementById('color2').value = d.color2 || '';
+    document.getElementById('colorNotes').value = d.colorNotes || '';
+    document.getElementById('treatmentNotes').value = d.treatmentNotes || '';
+    document.getElementById('straightDrug1').value = d.straightDrug1 || '';
+    document.getElementById('straightDrug2').value = d.straightDrug2 || '';
+    document.getElementById('straightNotes').value = d.straightNotes || '';
+    document.getElementById('spaNote').value = d.spaNote || '';
+    document.getElementById('chemical').value = d.chemical || '';
+    
+    if (d.rods) {
+        d.rods.forEach((r, i) => {
+            const inp = document.getElementById('rod' + i);
+            if (inp) inp.value = r.rod || '';
+        });
+    }
+    
+    document.getElementById('processTime').value = d.processTime || '';
+    document.getElementById('finishState').value = d.finishState || '';
+    document.getElementById('notes1').value = d.notes1 || '';
+    document.getElementById('notes2').value = d.notes2 || '';
+    
+    // スクロールをトップに
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateDisplay() {
+    document.getElementById('storageInfo').textContent = 
+        '登録顧客数: ' + customers.length + '/' + MAX_CUSTOMERS + 
+        ' | ブラウザ保存: ' + Math.min(customers.length, MAX_BROWSER_STORAGE) + '/' + MAX_BROWSER_STORAGE + '回分';
+    
+    document.getElementById('limitWarning').style.display = 
+        customers.length >= MAX_CUSTOMERS ? 'block' : 'none';
+    
+    displayCustomerList();
+}
+
+function displayCustomerList(s = '') {
+    const l = document.getElementById('customerList');
+    
+    if (!customers.length) {
+        l.innerHTML = '<div style="text-align:center;color:#999;padding:20px">顧客データがありません</div>';
+        return;
+    }
+    
+    const f = customers.filter(c => 
+        !s || 
+        c.name.includes(s) || 
+        c.id.includes(s) || 
+        (c.stylist && c.stylist.includes(s))
+    );
+    
+    if (!f.length) {
+        l.innerHTML = '<div style="text-align:center;color:#999;padding:20px">検索結果が見つかりません</div>';
+        return;
+    }
+    
+    // 最新順にソート
+    f.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    l.innerHTML = f.map(c => {
+        const hasDrawing = c.drawings && Object.keys(c.drawings).length > 0;
+        const drawingBadge = hasDrawing ? '<span style="background:#f093fb;color:white;padding:3px 8px;border-radius:10px;font-size:11px;margin-left:8px">🎨 描画済</span>' : '';
+        
+        return `<div class="customer-item" onclick='loadCustomerData(${JSON.stringify(c).replace(/'/g, "&apos;")})'>\
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">\
+<div style="font-weight:700;font-size:16px">${c.name}${drawingBadge}</div>\
+<div style="font-size:12px;color:#999">${new Date(c.timestamp).toLocaleDateString('ja-JP')}</div>\
+</div>\
+<div style="font-size:13px;opacity:0.8">ID: ${c.id}</div>\
+<div style="font-size:13px;opacity:0.8">来店日: ${c.date || '未設定'}</div>\
+${c.menus && c.menus.length ? '<div style="font-size:12px;opacity:0.7;margin-top:5px">施術: ' + c.menus.join(', ') + '</div>' : ''}\
+</div>`;
+    }).join('');
+}
+</script>
+</body>
+</html>
