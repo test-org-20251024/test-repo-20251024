@@ -186,6 +186,22 @@
             transition: all 0.3s;
         }
 
+        .undo-btn {
+            background: #ffa94d;
+            color: white;
+        }
+
+        .undo-btn:hover {
+            background: #ff922b;
+            transform: translateY(-2px);
+        }
+
+        .undo-btn:disabled {
+            background: #ced4da;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .clear-btn {
             background: #ff6b6b;
             color: white;
@@ -204,6 +220,13 @@
         .save-btn:hover {
             background: #40c057;
             transform: translateY(-2px);
+        }
+
+        .undo-info {
+            text-align: center;
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
         }
 
         .canvas-container {
@@ -315,9 +338,13 @@
                 <div class="control-group">
                     <h3>💾 アクション</h3>
                     <div class="action-buttons">
+                        <button class="action-btn undo-btn" id="undoBtn" onclick="undo()" disabled>
+                            ↶ 戻る (<span id="undoCount">0</span>/5)
+                        </button>
                         <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
-                        <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
+                        <button class="action-btn save-btn" onclick="saveDrawing()" style="grid-column: span 2;">保存</button>
                     </div>
+                    <div class="undo-info">最大5回まで戻れます</div>
                 </div>
             </div>
 
@@ -338,6 +365,8 @@
         let currentTool = 'pen';
         let currentView = 'front';
         let drawings = {};
+        let history = {}; // 各視点ごとの履歴を保存
+        const MAX_HISTORY = 5; // 最大5回まで戻れる
         
         // 全ての視点を定義（9個）
         const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
@@ -354,9 +383,10 @@
             container.innerHTML = '';
             container.appendChild(canvas);
             
-            // 各視点の描画データを初期化
+            // 各視点の描画データと履歴を初期化
             views.forEach(view => {
                 drawings[view] = [];
+                history[view] = [];
             });
 
             // 頭部の輪郭を描画
@@ -388,6 +418,8 @@
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+
+            updateUndoButton();
         }
 
         // 頭部輪郭描画（画像読み込み方式）
@@ -482,6 +514,7 @@
 
             // 新しい視点を描画
             drawHeadOutline();
+            updateUndoButton();
         }
 
         function setTool(tool) {
@@ -538,7 +571,11 @@
         }
 
         function stopDrawing() {
-            isDrawing = false;
+            if (isDrawing) {
+                isDrawing = false;
+                // 描画が完了したら履歴に保存
+                saveToHistory();
+            }
         }
 
         function handleTouch(e) {
@@ -552,6 +589,61 @@
             canvas.dispatchEvent(mouseEvent);
         }
 
+        // 履歴に保存
+        function saveToHistory() {
+            if (!history[currentView]) {
+                history[currentView] = [];
+            }
+
+            // 現在の描画状態を深いコピーで保存
+            const currentState = JSON.parse(JSON.stringify(drawings[currentView]));
+            history[currentView].push(currentState);
+
+            // 最大5個まで保持
+            if (history[currentView].length > MAX_HISTORY) {
+                history[currentView].shift();
+            }
+
+            updateUndoButton();
+        }
+
+        // 戻る機能
+        function undo() {
+            if (!history[currentView] || history[currentView].length === 0) {
+                return;
+            }
+
+            // 最後の履歴を削除
+            history[currentView].pop();
+
+            // 1つ前の状態を復元
+            if (history[currentView].length > 0) {
+                drawings[currentView] = JSON.parse(JSON.stringify(history[currentView][history[currentView].length - 1]));
+            } else {
+                // 履歴がなくなったら空にする
+                drawings[currentView] = [];
+            }
+
+            // 再描画
+            drawHeadOutline();
+            updateUndoButton();
+        }
+
+        // 戻るボタンの状態を更新
+        function updateUndoButton() {
+            const undoBtn = document.getElementById('undoBtn');
+            const undoCount = document.getElementById('undoCount');
+            const historyLength = history[currentView] ? history[currentView].length : 0;
+
+            undoCount.textContent = historyLength;
+
+            if (historyLength > 0) {
+                undoBtn.disabled = false;
+            } else {
+                undoBtn.disabled = true;
+            }
+        }
+
         function saveCurrentDrawing() {
             // 現在のキャンバス状態は既にdrawings配列に保存されている
         }
@@ -559,7 +651,9 @@
         function clearCanvas() {
             if (confirm('現在の視点の描画をクリアしますか？')) {
                 drawings[currentView] = [];
+                history[currentView] = [];
                 drawHeadOutline();
+                updateUndoButton();
             }
         }
 
@@ -567,6 +661,7 @@
             try {
                 // 全ての視点の描画データを保存
                 localStorage.setItem('headDrawings', JSON.stringify(drawings));
+                localStorage.setItem('headHistory', JSON.stringify(history));
                 
                 // 現在の視点の画像も保存
                 const dataURL = canvas.toDataURL('image/png');
@@ -585,10 +680,18 @@
             
             try {
                 const savedDrawings = localStorage.getItem('headDrawings');
+                const savedHistory = localStorage.getItem('headHistory');
+                
                 if (savedDrawings) {
                     drawings = JSON.parse(savedDrawings);
-                    drawHeadOutline();
                 }
+                
+                if (savedHistory) {
+                    history = JSON.parse(savedHistory);
+                }
+                
+                drawHeadOutline();
+                updateUndoButton();
             } catch (e) {
                 console.error('読み込みエラー:', e);
             }
