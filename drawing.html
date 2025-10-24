@@ -387,8 +387,8 @@
                         <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
                     </div>
                     <div class="undo-info">
-                        各操作ごとに独立して戻せます<br>
-                        ペン:5回 / 消しゴム:5回 / クリア:1回
+                        各操作は制限回数まで独立して戻せます<br>
+                        制限を超えると戻れません
                     </div>
                 </div>
             </div>
@@ -658,23 +658,20 @@
 
         function undoPen() {
             if (!penHistory[currentView] || penHistory[currentView].length === 0) {
+                alert('これ以上ペン操作を戻せません（最大5回まで）');
                 return;
             }
 
-            // ペン履歴から1つ戻る
+            // ペン履歴から1つ削除
             penHistory[currentView].pop();
 
-            // 復元する状態を決定
+            // 1つ前の状態に復元（ペン履歴のみから）
             if (penHistory[currentView].length > 0) {
-                // ペン履歴がまだある場合
                 drawings[currentView] = JSON.parse(JSON.stringify(penHistory[currentView][penHistory[currentView].length - 1]));
             } else {
-                // ペン履歴がない場合、消しゴム履歴から復元
-                if (eraserHistory[currentView] && eraserHistory[currentView].length > 0) {
-                    drawings[currentView] = JSON.parse(JSON.stringify(eraserHistory[currentView][eraserHistory[currentView].length - 1]));
-                } else {
-                    drawings[currentView] = [];
-                }
+                // ペン履歴が空になったらそこで終わり
+                // 消しゴム履歴は参照しない
+                drawings[currentView] = drawings[currentView].filter(line => line.tool !== 'pen' || penHistory[currentView].length > 0);
             }
 
             drawHeadOutline();
@@ -683,23 +680,20 @@
 
         function undoEraser() {
             if (!eraserHistory[currentView] || eraserHistory[currentView].length === 0) {
+                alert('これ以上消しゴム操作を戻せません（最大5回まで）');
                 return;
             }
 
-            // 消しゴム履歴から1つ戻る
+            // 消しゴム履歴から1つ削除
             eraserHistory[currentView].pop();
 
-            // 復元する状態を決定
+            // 1つ前の状態に復元（消しゴム履歴のみから）
             if (eraserHistory[currentView].length > 0) {
-                // 消しゴム履歴がまだある場合
                 drawings[currentView] = JSON.parse(JSON.stringify(eraserHistory[currentView][eraserHistory[currentView].length - 1]));
             } else {
-                // 消しゴム履歴がない場合、ペン履歴から復元
-                if (penHistory[currentView] && penHistory[currentView].length > 0) {
-                    drawings[currentView] = JSON.parse(JSON.stringify(penHistory[currentView][penHistory[currentView].length - 1]));
-                } else {
-                    drawings[currentView] = [];
-                }
+                // 消しゴム履歴が空になったらそこで終わり
+                // ペン履歴は参照しない
+                drawings[currentView] = drawings[currentView].filter(line => line.tool !== 'eraser' || eraserHistory[currentView].length > 0);
             }
 
             drawHeadOutline();
@@ -735,6 +729,7 @@
 
         function undoClear() {
             if (!clearHistory[currentView] || clearHistory[currentView].length === 0) {
+                alert('これ以上クリアを戻せません（最大1回まで）');
                 return;
             }
 
