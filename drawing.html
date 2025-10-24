@@ -191,7 +191,7 @@
             color: white;
         }
 
-        .undo-btn:hover {
+        .undo-btn:hover:not(:disabled) {
             background: #ff922b;
             transform: translateY(-2px);
         }
@@ -200,6 +200,7 @@
             background: #ced4da;
             cursor: not-allowed;
             transform: none;
+            opacity: 0.6;
         }
 
         .clear-btn {
@@ -215,6 +216,7 @@
         .save-btn {
             background: #51cf66;
             color: white;
+            grid-column: span 2;
         }
 
         .save-btn:hover {
@@ -342,7 +344,7 @@
                             ↶ 戻る (<span id="undoCount">0</span>/5)
                         </button>
                         <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
-                        <button class="action-btn save-btn" onclick="saveDrawing()" style="grid-column: span 2;">保存</button>
+                        <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
                     </div>
                     <div class="undo-info">最大5回まで戻れます</div>
                 </div>
@@ -365,34 +367,28 @@
         let currentTool = 'pen';
         let currentView = 'front';
         let drawings = {};
-        let history = {}; // 各視点ごとの履歴を保存
-        const MAX_HISTORY = 5; // 最大5回まで戻れる
+        let undoStack = {}; // 各視点ごとのUndoスタック
+        const MAX_UNDO = 5;
         
-        // 全ての視点を定義（9個）
         const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
 
-        // Canvas設定
         canvas.width = 800;
         canvas.height = 800;
         canvas.style.maxWidth = '100%';
         canvas.style.height = 'auto';
 
-        // 初期化
         function init() {
             const container = document.getElementById('canvasContainer');
             container.innerHTML = '';
             container.appendChild(canvas);
             
-            // 各視点の描画データと履歴を初期化
             views.forEach(view => {
                 drawings[view] = [];
-                history[view] = [];
+                undoStack[view] = [];
             });
 
-            // 頭部の輪郭を描画
             drawHeadOutline();
 
-            // イベントリスナー
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
@@ -413,7 +409,6 @@
                 document.getElementById('sizeValue').textContent = e.target.value;
             });
 
-            // 初期設定
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
@@ -422,16 +417,13 @@
             updateUndoButton();
         }
 
-        // 頭部輪郭描画（画像読み込み方式）
         function drawHeadOutline() {
             const container = document.getElementById('canvasContainer');
             const loadingDiv = container.querySelector('.loading');
             
-            // 背景をクリア
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // SVG画像を読み込み
             const img = new Image();
             const fileName = `head-${currentView}.svg`;
             
@@ -441,14 +433,12 @@
             }
 
             img.onload = function() {
-                // 画像を中央に配置
                 const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
                 const x = (canvas.width - img.width * scale) / 2;
                 const y = (canvas.height - img.height * scale) / 2;
                 
                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                 
-                // 保存された描画を復元
                 if (drawings[currentView]) {
                     drawings[currentView].forEach(line => {
                         ctx.strokeStyle = line.color;
@@ -462,7 +452,6 @@
                     });
                 }
 
-                // 現在のツール設定を復元
                 if (currentTool === 'pen') {
                     ctx.strokeStyle = document.getElementById('colorPicker').value;
                 } else {
@@ -482,7 +471,6 @@
                     loadingDiv.style.color = '#ff6b6b';
                 }
                 
-                // フォールバック: 簡単な円を描画
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -500,19 +488,13 @@
         }
 
         function changeView(view) {
-            // 現在の描画を保存
-            saveCurrentDrawing();
-
-            // 視点を変更
             currentView = view;
 
-            // ボタンのアクティブ状態を更新
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
 
-            // 新しい視点を描画
             drawHeadOutline();
             updateUndoButton();
         }
@@ -520,13 +502,11 @@
         function setTool(tool) {
             currentTool = tool;
             
-            // ボタンのアクティブ状態を更新
             document.querySelectorAll('.tool-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
 
-            // ツールに応じて設定を変更
             if (tool === 'eraser') {
                 ctx.strokeStyle = 'white';
                 canvas.style.cursor = 'grab';
@@ -539,8 +519,8 @@
         function startDrawing(e) {
             isDrawing = true;
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
             if (!drawings[currentView]) {
                 drawings[currentView] = [];
@@ -560,8 +540,8 @@
             if (!isDrawing) return;
 
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
             const currentLine = drawings[currentView][drawings[currentView].length - 1];
             currentLine.points.push({x, y});
@@ -573,8 +553,9 @@
         function stopDrawing() {
             if (isDrawing) {
                 isDrawing = false;
-                // 描画が完了したら履歴に保存
-                saveToHistory();
+                // 描画完了時にUndoスタックに保存
+                saveToUndoStack();
+                updateUndoButton();
             }
         }
 
@@ -589,38 +570,36 @@
             canvas.dispatchEvent(mouseEvent);
         }
 
-        // 履歴に保存
-        function saveToHistory() {
-            if (!history[currentView]) {
-                history[currentView] = [];
+        // Undoスタックに現在の状態を保存
+        function saveToUndoStack() {
+            if (!undoStack[currentView]) {
+                undoStack[currentView] = [];
             }
 
-            // 現在の描画状態を深いコピーで保存
-            const currentState = JSON.parse(JSON.stringify(drawings[currentView]));
-            history[currentView].push(currentState);
+            // 現在の描画状態の深いコピーを作成
+            const stateCopy = JSON.parse(JSON.stringify(drawings[currentView]));
+            undoStack[currentView].push(stateCopy);
 
             // 最大5個まで保持
-            if (history[currentView].length > MAX_HISTORY) {
-                history[currentView].shift();
+            if (undoStack[currentView].length > MAX_UNDO) {
+                undoStack[currentView].shift();
             }
-
-            updateUndoButton();
         }
 
         // 戻る機能
         function undo() {
-            if (!history[currentView] || history[currentView].length === 0) {
+            if (!undoStack[currentView] || undoStack[currentView].length === 0) {
                 return;
             }
 
-            // 最後の履歴を削除
-            history[currentView].pop();
+            // 現在の最後の状態を削除
+            undoStack[currentView].pop();
 
             // 1つ前の状態を復元
-            if (history[currentView].length > 0) {
-                drawings[currentView] = JSON.parse(JSON.stringify(history[currentView][history[currentView].length - 1]));
+            if (undoStack[currentView].length > 0) {
+                drawings[currentView] = JSON.parse(JSON.stringify(undoStack[currentView][undoStack[currentView].length - 1]));
             } else {
-                // 履歴がなくなったら空にする
+                // スタックが空になったら描画をクリア
                 drawings[currentView] = [];
             }
 
@@ -629,29 +608,25 @@
             updateUndoButton();
         }
 
-        // 戻るボタンの状態を更新
+        // Undoボタンの状態を更新
         function updateUndoButton() {
             const undoBtn = document.getElementById('undoBtn');
             const undoCount = document.getElementById('undoCount');
-            const historyLength = history[currentView] ? history[currentView].length : 0;
+            const stackLength = undoStack[currentView] ? undoStack[currentView].length : 0;
 
-            undoCount.textContent = historyLength;
+            undoCount.textContent = stackLength;
 
-            if (historyLength > 0) {
+            if (stackLength > 0) {
                 undoBtn.disabled = false;
             } else {
                 undoBtn.disabled = true;
             }
         }
 
-        function saveCurrentDrawing() {
-            // 現在のキャンバス状態は既にdrawings配列に保存されている
-        }
-
         function clearCanvas() {
             if (confirm('現在の視点の描画をクリアしますか？')) {
                 drawings[currentView] = [];
-                history[currentView] = [];
+                undoStack[currentView] = [];
                 drawHeadOutline();
                 updateUndoButton();
             }
@@ -659,11 +634,9 @@
 
         function saveDrawing() {
             try {
-                // 全ての視点の描画データを保存
                 localStorage.setItem('headDrawings', JSON.stringify(drawings));
-                localStorage.setItem('headHistory', JSON.stringify(history));
+                localStorage.setItem('headUndoStack', JSON.stringify(undoStack));
                 
-                // 現在の視点の画像も保存
                 const dataURL = canvas.toDataURL('image/png');
                 localStorage.setItem(`headDrawing_${currentView}`, dataURL);
                 
@@ -674,20 +647,19 @@
             }
         }
 
-        // ページ読み込み時に保存されたデータを復元
         window.addEventListener('load', () => {
             init();
             
             try {
                 const savedDrawings = localStorage.getItem('headDrawings');
-                const savedHistory = localStorage.getItem('headHistory');
+                const savedUndoStack = localStorage.getItem('headUndoStack');
                 
                 if (savedDrawings) {
                     drawings = JSON.parse(savedDrawings);
                 }
                 
-                if (savedHistory) {
-                    history = JSON.parse(savedHistory);
+                if (savedUndoStack) {
+                    undoStack = JSON.parse(savedUndoStack);
                 }
                 
                 drawHeadOutline();
