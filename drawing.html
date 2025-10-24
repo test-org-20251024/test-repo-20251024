@@ -172,7 +172,7 @@
 
         .action-buttons {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 10px;
         }
 
@@ -213,10 +213,26 @@
             transform: translateY(-2px);
         }
 
+        .undo-clear-btn {
+            background: #e67700;
+            color: white;
+        }
+
+        .undo-clear-btn:hover:not(:disabled) {
+            background: #cc6a00;
+            transform: translateY(-2px);
+        }
+
+        .undo-clear-btn:disabled {
+            background: #ced4da;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+
         .save-btn {
             background: #51cf66;
             color: white;
-            grid-column: span 2;
         }
 
         .save-btn:hover {
@@ -229,6 +245,7 @@
             font-size: 0.85em;
             color: #666;
             margin-top: 10px;
+            line-height: 1.5;
         }
 
         .canvas-container {
@@ -341,12 +358,18 @@
                     <h3>💾 アクション</h3>
                     <div class="action-buttons">
                         <button class="action-btn undo-btn" id="undoBtn" onclick="undo()" disabled>
-                            ↶ 戻る (<span id="undoCount">0</span>/5)
+                            ↶ 戻る (<span id="undoCount">ペン:0/5 消:0/5</span>)
                         </button>
                         <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
+                        <button class="action-btn undo-clear-btn" id="undoClearBtn" onclick="undoClear()" disabled>
+                            ↶ クリアを戻す (0/1)
+                        </button>
                         <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
                     </div>
-                    <div class="undo-info">ペン描画のみ最大5回まで戻れます<br>消しゴムは無制限</div>
+                    <div class="undo-info">
+                        ペン描画:5回まで / 消しゴム:5回まで<br>
+                        クリア:1回まで戻せます
+                    </div>
                 </div>
             </div>
 
@@ -367,8 +390,12 @@
         let currentTool = 'pen';
         let currentView = 'front';
         let drawings = {};
-        let undoStack = {}; // 各視点ごとのUndoスタック
-        const MAX_UNDO = 5;
+        let penUndoStack = {};    // ペン用Undoスタック
+        let eraserUndoStack = {}; // 消しゴム用Undoスタック
+        let clearHistory = {};    // クリア履歴
+        const MAX_PEN_UNDO = 5;
+        const MAX_ERASER_UNDO = 5;
+        const MAX_CLEAR_UNDO = 1;
         
         const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
 
@@ -384,7 +411,9 @@
             
             views.forEach(view => {
                 drawings[view] = [];
-                undoStack[view] = [];
+                penUndoStack[view] = [];
+                eraserUndoStack[view] = [];
+                clearHistory[view] = [];
             });
 
             drawHeadOutline();
@@ -414,7 +443,7 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
-            updateUndoButton();
+            updateUndoButtons();
         }
 
         function drawHeadOutline() {
@@ -496,7 +525,7 @@
             event.target.classList.add('active');
 
             drawHeadOutline();
-            updateUndoButton();
+            updateUndoButtons();
         }
 
         function setTool(tool) {
@@ -530,7 +559,7 @@
                 color: ctx.strokeStyle,
                 width: ctx.lineWidth,
                 points: [{x, y}],
-                tool: currentTool  // ツールの種類を記録
+                tool: currentTool
             });
 
             ctx.beginPath();
@@ -555,12 +584,15 @@
             if (isDrawing) {
                 isDrawing = false;
                 
-                // ペンの場合のみUndoスタックに保存
-                if (currentTool === 'pen') {
-                    saveToUndoStack();
-                    updateUndoButton();
+                const lastLine = drawings[currentView][drawings[currentView].length - 1];
+                
+                if (lastLine.tool === 'pen') {
+                    saveToPenUndoStack();
+                } else if (lastLine.tool === 'eraser') {
+                    saveToEraserUndoStack();
                 }
-                // 消しゴムの場合は履歴に残さない（無制限）
+                
+                updateUndoButtons();
             }
         }
 
@@ -575,72 +607,143 @@
             canvas.dispatchEvent(mouseEvent);
         }
 
-        // Undoスタックに現在の状態を保存（ペンのみ）
-        function saveToUndoStack() {
-            if (!undoStack[currentView]) {
-                undoStack[currentView] = [];
+        function saveToPenUndoStack() {
+            if (!penUndoStack[currentView]) {
+                penUndoStack[currentView] = [];
             }
 
-            // 現在の描画状態の深いコピーを作成
             const stateCopy = JSON.parse(JSON.stringify(drawings[currentView]));
-            undoStack[currentView].push(stateCopy);
+            penUndoStack[currentView].push(stateCopy);
 
-            // 最大5個まで保持
-            if (undoStack[currentView].length > MAX_UNDO) {
-                undoStack[currentView].shift();
+            if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
+                penUndoStack[currentView].shift();
             }
         }
 
-        // 戻る機能（ペン描画のみ）
+        function saveToEraserUndoStack() {
+            if (!eraserUndoStack[currentView]) {
+                eraserUndoStack[currentView] = [];
+            }
+
+            const stateCopy = JSON.parse(JSON.stringify(drawings[currentView]));
+            eraserUndoStack[currentView].push(stateCopy);
+
+            if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
+                eraserUndoStack[currentView].shift();
+            }
+        }
+
         function undo() {
-            if (!undoStack[currentView] || undoStack[currentView].length === 0) {
-                return;
+            // 最後の操作がペンか消しゴムかを判定
+            if (drawings[currentView].length === 0) return;
+            
+            const lastLine = drawings[currentView][drawings[currentView].length - 1];
+            
+            if (lastLine.tool === 'pen' && penUndoStack[currentView] && penUndoStack[currentView].length > 0) {
+                penUndoStack[currentView].pop();
+                if (penUndoStack[currentView].length > 0) {
+                    drawings[currentView] = JSON.parse(JSON.stringify(penUndoStack[currentView][penUndoStack[currentView].length - 1]));
+                } else {
+                    // ペンスタックが空、消しゴムスタックから復元
+                    if (eraserUndoStack[currentView] && eraserUndoStack[currentView].length > 0) {
+                        drawings[currentView] = JSON.parse(JSON.stringify(eraserUndoStack[currentView][eraserUndoStack[currentView].length - 1]));
+                    } else {
+                        drawings[currentView] = [];
+                    }
+                }
+            } else if (lastLine.tool === 'eraser' && eraserUndoStack[currentView] && eraserUndoStack[currentView].length > 0) {
+                eraserUndoStack[currentView].pop();
+                if (eraserUndoStack[currentView].length > 0) {
+                    drawings[currentView] = JSON.parse(JSON.stringify(eraserUndoStack[currentView][eraserUndoStack[currentView].length - 1]));
+                } else {
+                    // 消しゴムスタックが空、ペンスタックから復元
+                    if (penUndoStack[currentView] && penUndoStack[currentView].length > 0) {
+                        drawings[currentView] = JSON.parse(JSON.stringify(penUndoStack[currentView][penUndoStack[currentView].length - 1]));
+                    } else {
+                        drawings[currentView] = [];
+                    }
+                }
             }
 
-            // 現在の最後の状態を削除
-            undoStack[currentView].pop();
-
-            // 1つ前の状態を復元
-            if (undoStack[currentView].length > 0) {
-                drawings[currentView] = JSON.parse(JSON.stringify(undoStack[currentView][undoStack[currentView].length - 1]));
-            } else {
-                // スタックが空になったら描画をクリア
-                drawings[currentView] = [];
-            }
-
-            // 再描画
             drawHeadOutline();
-            updateUndoButton();
-        }
-
-        // Undoボタンの状態を更新
-        function updateUndoButton() {
-            const undoBtn = document.getElementById('undoBtn');
-            const undoCount = document.getElementById('undoCount');
-            const stackLength = undoStack[currentView] ? undoStack[currentView].length : 0;
-
-            undoCount.textContent = stackLength;
-
-            if (stackLength > 0) {
-                undoBtn.disabled = false;
-            } else {
-                undoBtn.disabled = true;
-            }
+            updateUndoButtons();
         }
 
         function clearCanvas() {
             if (confirm('現在の視点の描画をクリアしますか？')) {
+                // クリア前の状態を保存
+                if (!clearHistory[currentView]) {
+                    clearHistory[currentView] = [];
+                }
+                
+                const beforeClear = {
+                    drawings: JSON.parse(JSON.stringify(drawings[currentView])),
+                    penStack: JSON.parse(JSON.stringify(penUndoStack[currentView])),
+                    eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView]))
+                };
+                
+                clearHistory[currentView].push(beforeClear);
+                
+                // 最大1個まで保持
+                if (clearHistory[currentView].length > MAX_CLEAR_UNDO) {
+                    clearHistory[currentView].shift();
+                }
+                
+                // クリア実行
                 drawings[currentView] = [];
-                undoStack[currentView] = [];
+                penUndoStack[currentView] = [];
+                eraserUndoStack[currentView] = [];
+                
                 drawHeadOutline();
-                updateUndoButton();
+                updateUndoButtons();
+            }
+        }
+
+        function undoClear() {
+            if (!clearHistory[currentView] || clearHistory[currentView].length === 0) {
+                return;
+            }
+
+            const lastState = clearHistory[currentView].pop();
+            drawings[currentView] = lastState.drawings;
+            penUndoStack[currentView] = lastState.penStack;
+            eraserUndoStack[currentView] = lastState.eraserStack;
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function updateUndoButtons() {
+            const undoBtn = document.getElementById('undoBtn');
+            const undoCount = document.getElementById('undoCount');
+            const undoClearBtn = document.getElementById('undoClearBtn');
+            
+            const penLength = penUndoStack[currentView] ? penUndoStack[currentView].length : 0;
+            const eraserLength = eraserUndoStack[currentView] ? eraserUndoStack[currentView].length : 0;
+            const clearLength = clearHistory[currentView] ? clearHistory[currentView].length : 0;
+
+            undoCount.textContent = `ペン:${penLength}/${MAX_PEN_UNDO} 消:${eraserLength}/${MAX_ERASER_UNDO}`;
+
+            if (penLength > 0 || eraserLength > 0) {
+                undoBtn.disabled = false;
+            } else {
+                undoBtn.disabled = true;
+            }
+
+            undoClearBtn.textContent = `↶ クリアを戻す (${clearLength}/${MAX_CLEAR_UNDO})`;
+            if (clearLength > 0) {
+                undoClearBtn.disabled = false;
+            } else {
+                undoClearBtn.disabled = true;
             }
         }
 
         function saveDrawing() {
             try {
                 localStorage.setItem('headDrawings', JSON.stringify(drawings));
-                localStorage.setItem('headUndoStack', JSON.stringify(undoStack));
+                localStorage.setItem('headPenUndoStack', JSON.stringify(penUndoStack));
+                localStorage.setItem('headEraserUndoStack', JSON.stringify(eraserUndoStack));
+                localStorage.setItem('headClearHistory', JSON.stringify(clearHistory));
                 
                 const dataURL = canvas.toDataURL('image/png');
                 localStorage.setItem(`headDrawing_${currentView}`, dataURL);
@@ -657,18 +760,28 @@
             
             try {
                 const savedDrawings = localStorage.getItem('headDrawings');
-                const savedUndoStack = localStorage.getItem('headUndoStack');
+                const savedPenStack = localStorage.getItem('headPenUndoStack');
+                const savedEraserStack = localStorage.getItem('headEraserUndoStack');
+                const savedClearHistory = localStorage.getItem('headClearHistory');
                 
                 if (savedDrawings) {
                     drawings = JSON.parse(savedDrawings);
                 }
                 
-                if (savedUndoStack) {
-                    undoStack = JSON.parse(savedUndoStack);
+                if (savedPenStack) {
+                    penUndoStack = JSON.parse(savedPenStack);
+                }
+                
+                if (savedEraserStack) {
+                    eraserUndoStack = JSON.parse(savedEraserStack);
+                }
+                
+                if (savedClearHistory) {
+                    clearHistory = JSON.parse(savedClearHistory);
                 }
                 
                 drawHeadOutline();
-                updateUndoButton();
+                updateUndoButtons();
             } catch (e) {
                 console.error('読み込みエラー:', e);
             }
