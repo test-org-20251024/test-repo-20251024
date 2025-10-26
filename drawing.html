@@ -205,6 +205,16 @@
             color: #667eea;
         }
 
+        .text-mode-toggle {
+            background: #22b8cf;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
         .action-buttons {
             display: grid;
             grid-template-columns: 1fr;
@@ -343,6 +353,10 @@
             cursor: text;
         }
 
+        canvas.move-cursor {
+            cursor: move;
+        }
+
         .back-link {
             display: inline-block;
             padding: 15px 30px;
@@ -386,6 +400,16 @@
             color: #667eea;
             font-size: 1.2em;
             padding: 20px;
+        }
+
+        .text-hint {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            color: #1565c0;
         }
     </style>
 </head>
@@ -432,6 +456,9 @@
                     </div>
 
                     <div class="text-controls" id="textControls" style="display: none;">
+                        <div class="text-mode-toggle" id="textModeIndicator">
+                            モード: テキスト追加
+                        </div>
                         <div class="text-input-group">
                             <label for="textInput">テキスト:</label>
                             <input type="text" id="textInput" placeholder="入力してキャンバスをクリック">
@@ -447,6 +474,9 @@
                         <div class="text-input-group">
                             <label for="textOpacity">透過度: <span class="opacity-value" id="textOpacityValue">50</span>%</label>
                             <input type="range" id="textOpacity" min="10" max="100" value="50">
+                        </div>
+                        <div class="text-hint">
+                            💡 テキストを長押し（0.5秒）で移動モードに切替
                         </div>
                     </div>
                 </div>
@@ -499,6 +529,14 @@
         let textUndoStack = {};
         let clearHistory = {};
         
+        // テキスト移動用の変数
+        let isDraggingText = false;
+        let draggedTextIndex = null;
+        let dragStartTime = null;
+        let longPressTimer = null;
+        let dragOffset = { x: 0, y: 0 };
+        const LONG_PRESS_DURATION = 500; // 0.5秒
+        
         const MAX_PEN_UNDO = 5;
         const MAX_ERASER_UNDO = 5;
         const MAX_TEXT_UNDO = 5;
@@ -526,14 +564,14 @@
 
             drawHeadOutline();
 
-            canvas.addEventListener('mousedown', handleCanvasClick);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('mousedown', handleCanvasMouseDown);
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseup', handleCanvasMouseUp);
+            canvas.addEventListener('mouseout', handleCanvasMouseUp);
 
-            canvas.addEventListener('touchstart', handleTouch);
-            canvas.addEventListener('touchmove', handleTouch);
-            canvas.addEventListener('touchend', stopDrawing);
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleTouchEnd);
 
             document.getElementById('colorPicker').addEventListener('change', (e) => {
                 if (currentTool === 'pen') {
@@ -584,29 +622,7 @@
                 
                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                 
-                // 削除されていない要素を描画
-                if (drawings[currentView]) {
-                    drawings[currentView].forEach(item => {
-                        if (!item.deleted) {
-                            if (item.type === 'line') {
-                                ctx.strokeStyle = item.color;
-                                ctx.lineWidth = item.width;
-                                ctx.beginPath();
-                                ctx.moveTo(item.points[0].x, item.points[0].y);
-                                for (let i = 1; i < item.points.length; i++) {
-                                    ctx.lineTo(item.points[i].x, item.points[i].y);
-                                }
-                                ctx.stroke();
-                            } else if (item.type === 'text') {
-                                ctx.font = `${item.fontSize}px Arial`;
-                                ctx.fillStyle = item.color;
-                                ctx.globalAlpha = item.opacity;
-                                ctx.fillText(item.text, item.x, item.y);
-                                ctx.globalAlpha = 1.0;
-                            }
-                        }
-                    });
-                }
+                redrawAllElements();
 
                 if (currentTool === 'pen') {
                     ctx.strokeStyle = document.getElementById('colorPicker').value;
@@ -643,6 +659,44 @@
             img.src = fileName;
         }
 
+        function redrawAllElements() {
+            if (drawings[currentView]) {
+                drawings[currentView].forEach((item, index) => {
+                    if (!item.deleted) {
+                        if (item.type === 'line') {
+                            ctx.strokeStyle = item.color;
+                            ctx.lineWidth = item.width;
+                            ctx.beginPath();
+                            ctx.moveTo(item.points[0].x, item.points[0].y);
+                            for (let i = 1; i < item.points.length; i++) {
+                                ctx.lineTo(item.points[i].x, item.points[i].y);
+                            }
+                            ctx.stroke();
+                        } else if (item.type === 'text') {
+                            ctx.font = `${item.fontSize}px Arial`;
+                            ctx.fillStyle = item.color;
+                            ctx.globalAlpha = item.opacity;
+                            ctx.fillText(item.text, item.x, item.y);
+                            ctx.globalAlpha = 1.0;
+                            
+                            // ドラッグ中のテキストにハイライト表示
+                            if (isDraggingText && draggedTextIndex === index) {
+                                const textWidth = ctx.measureText(item.text).width;
+                                ctx.strokeStyle = '#2196f3';
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(
+                                    item.x - 5, 
+                                    item.y - item.fontSize - 5, 
+                                    textWidth + 10, 
+                                    item.fontSize + 10
+                                );
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         function changeView(view) {
             currentView = view;
 
@@ -657,6 +711,8 @@
 
         function setTool(tool) {
             currentTool = tool;
+            isDraggingText = false;
+            draggedTextIndex = null;
             
             document.querySelectorAll('.tool-btn').forEach(btn => {
                 btn.classList.remove('active');
@@ -671,10 +727,12 @@
                 textControls.style.display = 'block';
                 canvas.classList.add('text-cursor');
                 canvas.style.cursor = 'text';
+                updateTextModeIndicator('追加');
             } else {
                 penEraserControls.style.display = 'flex';
                 textControls.style.display = 'none';
                 canvas.classList.remove('text-cursor');
+                canvas.classList.remove('move-cursor');
                 
                 if (tool === 'eraser') {
                     ctx.strokeStyle = 'white';
@@ -686,12 +744,131 @@
             }
         }
 
-        function handleCanvasClick(e) {
+        function updateTextModeIndicator(mode) {
+            const indicator = document.getElementById('textModeIndicator');
+            if (mode === '移動') {
+                indicator.textContent = 'モード: テキスト移動中';
+                indicator.style.background = '#ff9800';
+            } else {
+                indicator.textContent = 'モード: テキスト追加';
+                indicator.style.background = '#22b8cf';
+            }
+        }
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function findTextAtPosition(x, y) {
+            if (!drawings[currentView]) return null;
+            
+            for (let i = drawings[currentView].length - 1; i >= 0; i--) {
+                const item = drawings[currentView][i];
+                if (item.type === 'text' && !item.deleted) {
+                    ctx.font = `${item.fontSize}px Arial`;
+                    const textWidth = ctx.measureText(item.text).width;
+                    const textHeight = item.fontSize;
+                    
+                    if (x >= item.x - 5 && x <= item.x + textWidth + 5 &&
+                        y >= item.y - textHeight - 5 && y <= item.y + 5) {
+                        return i;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function handleCanvasMouseDown(e) {
+            const coords = getCanvasCoordinates(e);
+            
             if (currentTool === 'text') {
-                addText(e);
+                const textIndex = findTextAtPosition(coords.x, coords.y);
+                
+                if (textIndex !== null) {
+                    // テキスト上でマウスダウン → 長押し判定開始
+                    dragStartTime = Date.now();
+                    draggedTextIndex = textIndex;
+                    
+                    longPressTimer = setTimeout(() => {
+                        isDraggingText = true;
+                        const item = drawings[currentView][textIndex];
+                        dragOffset.x = coords.x - item.x;
+                        dragOffset.y = coords.y - item.y;
+                        canvas.classList.remove('text-cursor');
+                        canvas.classList.add('move-cursor');
+                        updateTextModeIndicator('移動');
+                        drawHeadOutline();
+                    }, LONG_PRESS_DURATION);
+                } else {
+                    // テキストのない場所をクリック → 新規追加
+                    addText(e);
+                }
             } else {
                 startDrawing(e);
             }
+        }
+
+        function handleCanvasMouseMove(e) {
+            if (isDraggingText && draggedTextIndex !== null) {
+                const coords = getCanvasCoordinates(e);
+                const item = drawings[currentView][draggedTextIndex];
+                
+                item.x = coords.x - dragOffset.x;
+                item.y = coords.y - dragOffset.y;
+                
+                drawHeadOutline();
+            } else if (currentTool !== 'text') {
+                draw(e);
+            }
+        }
+
+        function handleCanvasMouseUp(e) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            
+            if (isDraggingText) {
+                isDraggingText = false;
+                draggedTextIndex = null;
+                canvas.classList.remove('move-cursor');
+                canvas.classList.add('text-cursor');
+                updateTextModeIndicator('追加');
+                drawHeadOutline();
+            } else if (currentTool !== 'text') {
+                stopDrawing();
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            handleCanvasMouseDown(mouseEvent);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            handleCanvasMouseMove(mouseEvent);
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            handleCanvasMouseUp(e);
         }
 
         function addText(e) {
@@ -703,10 +880,7 @@
                 return;
             }
 
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
+            const coords = getCanvasCoordinates(e);
             const fontSize = parseInt(document.getElementById('textSize').value);
             const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
             const color = document.getElementById('textColor').value;
@@ -720,15 +894,14 @@
             drawings[currentView].push({
                 type: 'text',
                 text: text,
-                x: x,
-                y: y,
+                x: coords.x,
+                y: coords.y,
                 fontSize: fontSize,
                 opacity: opacity,
                 color: color,
                 tool: 'text'
             });
 
-            // テキストスタックに追加
             if (!textUndoStack[currentView]) {
                 textUndoStack[currentView] = [];
             }
@@ -741,7 +914,6 @@
             drawHeadOutline();
             updateUndoButtons();
 
-            // テキスト入力欄をクリア
             textInput.value = '';
         }
 
@@ -749,9 +921,7 @@
             if (currentTool === 'text') return;
 
             isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const coords = getCanvasCoordinates(e);
 
             if (!drawings[currentView]) {
                 drawings[currentView] = [];
@@ -761,25 +931,22 @@
                 type: 'line',
                 color: ctx.strokeStyle,
                 width: ctx.lineWidth,
-                points: [{x, y}],
+                points: [coords],
                 tool: currentTool
             });
 
             ctx.beginPath();
-            ctx.moveTo(x, y);
+            ctx.moveTo(coords.x, coords.y);
         }
 
         function draw(e) {
             if (!isDrawing || currentTool === 'text') return;
 
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
+            const coords = getCanvasCoordinates(e);
             const currentLine = drawings[currentView][drawings[currentView].length - 1];
-            currentLine.points.push({x, y});
+            currentLine.points.push(coords);
 
-            ctx.lineTo(x, y);
+            ctx.lineTo(coords.x, coords.y);
             ctx.stroke();
         }
 
@@ -814,17 +981,6 @@
                 
                 updateUndoButtons();
             }
-        }
-
-        function handleTouch(e) {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
-                                             e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
-                clientX: touch.clientX,
-                clientY: touch.clientY
-            });
-            canvas.dispatchEvent(mouseEvent);
         }
 
         function undoPen() {
@@ -1004,3 +1160,4 @@
     </script>
 </body>
 </html>
+```
