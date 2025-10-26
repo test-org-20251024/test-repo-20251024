@@ -518,715 +518,731 @@
 
     <script>
         const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-let isDrawing = false;
-let currentTool = 'pen';
-let currentView = 'front';
-let drawings = {};
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentView = 'front';
+        let drawings = {};
 
-let penUndoStack = {};
-let eraserUndoStack = {};
-let textUndoStack = {};
-let clearHistory = {};
+        let penUndoStack = {};
+        let eraserUndoStack = {};
+        let textUndoStack = {};
+        let clearHistory = {};
 
-// テキスト移動用の変数
-let isDraggingText = false;
-let draggedTextIndex = null;
-let longPressTimer = null;
-let dragOffset = { x: 0, y: 0 };
-let isLongPressTriggered = false;
-let clickStartPos = null;
-const LONG_PRESS_DURATION = 500; // 0.5秒
-const MOVE_THRESHOLD = 10; // 10px以上動いたらドラッグとみなす
+        // テキスト移動用の変数
+        let isDraggingText = false;
+        let draggedTextIndex = null;
+        let longPressTimer = null;
+        let dragOffset = { x: 0, y: 0 };
+        let isLongPressTriggered = false;
+        let clickStartPos = null;
+        const LONG_PRESS_DURATION = 500; // 0.5秒
+        const MOVE_THRESHOLD = 10; // 10px以上動いたらドラッグとみなす
 
-const MAX_PEN_UNDO = 5;
-const MAX_ERASER_UNDO = 5;
-const MAX_TEXT_UNDO = 5;
-const MAX_CLEAR_UNDO = 1;
+        const MAX_PEN_UNDO = 5;
+        const MAX_ERASER_UNDO = 5;
+        const MAX_TEXT_UNDO = 5;
+        const MAX_CLEAR_UNDO = 1;
 
-const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
+        const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
 
-canvas.width = 800;
-canvas.height = 800;
-canvas.style.maxWidth = '100%';
-canvas.style.height = 'auto';
+        canvas.width = 800;
+        canvas.height = 800;
+        canvas.style.maxWidth = '100%';
+        canvas.style.height = 'auto';
 
-function init() {
-    const container = document.getElementById('canvasContainer');
-    container.innerHTML = '';
-    container.appendChild(canvas);
-    
-    views.forEach(view => {
-        drawings[view] = [];
-        penUndoStack[view] = [];
-        eraserUndoStack[view] = [];
-        textUndoStack[view] = [];
-        clearHistory[view] = [];
-    });
+        function init() {
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = '';
+            container.appendChild(canvas);
+            
+            views.forEach(view => {
+                drawings[view] = [];
+                penUndoStack[view] = [];
+                eraserUndoStack[view] = [];
+                textUndoStack[view] = [];
+                clearHistory[view] = [];
+            });
 
-    drawHeadOutline();
+            drawHeadOutline();
 
-    canvas.addEventListener('mousedown', handleCanvasMouseDown);
-    canvas.addEventListener('mousemove', handleCanvasMouseMove);
-    canvas.addEventListener('mouseup', handleCanvasMouseUp);
-    canvas.addEventListener('mouseout', handleCanvasMouseUp);
+            canvas.addEventListener('mousedown', handleCanvasMouseDown);
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseup', handleCanvasMouseUp);
+            canvas.addEventListener('mouseout', handleCanvasMouseUp);
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-    document.getElementById('colorPicker').addEventListener('change', (e) => {
-        if (currentTool === 'pen') {
-            ctx.strokeStyle = e.target.value;
+            document.getElementById('colorPicker').addEventListener('change', (e) => {
+                if (currentTool === 'pen') {
+                    ctx.strokeStyle = e.target.value;
+                }
+            });
+
+            document.getElementById('brushSize').addEventListener('input', (e) => {
+                ctx.lineWidth = e.target.value;
+                document.getElementById('sizeValue').textContent = e.target.value;
+            });
+
+            document.getElementById('textSize').addEventListener('input', (e) => {
+                document.getElementById('textSizeValue').textContent = e.target.value;
+            });
+
+            document.getElementById('textOpacity').addEventListener('input', (e) => {
+                document.getElementById('textOpacityValue').textContent = e.target.value;
+            });
+
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            updateUndoButtons();
         }
-    });
 
-    document.getElementById('brushSize').addEventListener('input', (e) => {
-        ctx.lineWidth = e.target.value;
-        document.getElementById('sizeValue').textContent = e.target.value;
-    });
+        function drawHeadOutline() {
+            const container = document.getElementById('canvasContainer');
+            const loadingDiv = container.querySelector('.loading');
+            
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    document.getElementById('textSize').addEventListener('input', (e) => {
-        document.getElementById('textSizeValue').textContent = e.target.value;
-    });
-
-    document.getElementById('textOpacity').addEventListener('input', (e) => {
-        document.getElementById('textOpacityValue').textContent = e.target.value;
-    });
-
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    updateUndoButtons();
-}
-
-function drawHeadOutline() {
-    const container = document.getElementById('canvasContainer');
-    const loadingDiv = container.querySelector('.loading');
-    
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const img = new Image();
-    const fileName = `head-${currentView}.svg`;
-    
-    if (loadingDiv) {
-        loadingDiv.textContent = `${currentView}を読み込み中...`;
-        loadingDiv.style.display = 'block';
-    }
-
-    img.onload = function() {
-        const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
-        const x = (canvas.width - img.width * scale) / 2;
-        const y = (canvas.height - img.height * scale) / 2;
-        
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        redrawAllElements();
-
-        if (currentTool === 'pen') {
-            ctx.strokeStyle = document.getElementById('colorPicker').value;
-        } else {
-            ctx.strokeStyle = 'white';
-        }
-        ctx.lineWidth = document.getElementById('brushSize').value;
-
-        if (loadingDiv) {
-            loadingDiv.style.display = 'none';
-        }
-    };
-
-    img.onerror = function() {
-        console.error(`画像の読み込みに失敗: ${fileName}`);
-        if (loadingDiv) {
-            loadingDiv.textContent = `エラー: ${fileName}が見つかりません`;
-            loadingDiv.style.color = '#ff6b6b';
-        }
-        
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(canvas.width / 2, canvas.height / 2, 200, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        setTimeout(() => {
+            const img = new Image();
+            const fileName = `head-${currentView}.svg`;
+            
             if (loadingDiv) {
-                loadingDiv.style.display = 'none';
+                loadingDiv.textContent = `${currentView}を読み込み中...`;
+                loadingDiv.style.display = 'block';
             }
-        }, 2000);
-    };
 
-    img.src = fileName;
-}
+            img.onload = function() {
+                // キャンバスをクリア
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 画像を描画
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
+                const x = (canvas.width - img.width * scale) / 2;
+                const y = (canvas.height - img.height * scale) / 2;
+                
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                
+                // その上に描画要素を重ねる
+                redrawAllElements();
 
-function redrawAllElements() {
-    if (drawings[currentView]) {
-        drawings[currentView].forEach((item, index) => {
-            if (!item.deleted) {
-                if (item.type === 'line') {
-                    ctx.strokeStyle = item.color;
-                    ctx.lineWidth = item.width;
-                    ctx.beginPath();
-                    ctx.moveTo(item.points[0].x, item.points[0].y);
-                    for (let i = 1; i < item.points.length; i++) {
-                        ctx.lineTo(item.points[i].x, item.points[i].y);
+                // ツールの設定を復元
+                if (currentTool === 'pen') {
+                    ctx.strokeStyle = document.getElementById('colorPicker').value;
+                } else {
+                    ctx.strokeStyle = 'white';
+                }
+                ctx.lineWidth = document.getElementById('brushSize').value;
+
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            };
+
+            img.onerror = function() {
+                console.error(`画像の読み込みに失敗: ${fileName}`);
+                
+                // キャンバスをクリア
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                if (loadingDiv) {
+                    loadingDiv.textContent = `エラー: ${fileName}が見つかりません`;
+                    loadingDiv.style.color = '#ff6b6b';
+                }
+                
+                // フォールバック: 円を描画
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, canvas.height / 2, 200, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 描画要素を重ねる
+                redrawAllElements();
+                
+                setTimeout(() => {
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'none';
                     }
-                    ctx.stroke();
-                } else if (item.type === 'text') {
+                }, 2000);
+            };
+
+            img.src = fileName;
+        }
+
+        function redrawAllElements() {
+            if (drawings[currentView]) {
+                drawings[currentView].forEach((item, index) => {
+                    if (!item.deleted) {
+                        if (item.type === 'line') {
+                            ctx.strokeStyle = item.color;
+                            ctx.lineWidth = item.width;
+                            ctx.beginPath();
+                            ctx.moveTo(item.points[0].x, item.points[0].y);
+                            for (let i = 1; i < item.points.length; i++) {
+                                ctx.lineTo(item.points[i].x, item.points[i].y);
+                            }
+                            ctx.stroke();
+                        } else if (item.type === 'text') {
+                            ctx.font = `${item.fontSize}px Arial`;
+                            ctx.fillStyle = item.color;
+                            ctx.globalAlpha = item.opacity;
+                            ctx.fillText(item.text, item.x, item.y);
+                            ctx.globalAlpha = 1.0;
+                            
+                            // ドラッグ中のテキストにハイライト表示
+                            if (isDraggingText && draggedTextIndex === index) {
+                                const textWidth = ctx.measureText(item.text).width;
+                                ctx.strokeStyle = '#2196f3';
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(
+                                    item.x - 5, 
+                                    item.y - item.fontSize - 5, 
+                                    textWidth + 10, 
+                                    item.fontSize + 10
+                                );
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function changeView(view) {
+            currentView = view;
+
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            isDraggingText = false;
+            draggedTextIndex = null;
+            isLongPressTriggered = false;
+            
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            const penEraserControls = document.getElementById('penEraserControls');
+            const textControls = document.getElementById('textControls');
+
+            if (tool === 'text') {
+                penEraserControls.style.display = 'none';
+                textControls.style.display = 'block';
+                canvas.classList.add('text-cursor');
+                canvas.style.cursor = 'text';
+                updateTextModeIndicator('追加');
+            } else {
+                penEraserControls.style.display = 'flex';
+                textControls.style.display = 'none';
+                canvas.classList.remove('text-cursor');
+                canvas.classList.remove('move-cursor');
+                
+                if (tool === 'eraser') {
+                    ctx.strokeStyle = 'white';
+                    canvas.style.cursor = 'grab';
+                } else {
+                    ctx.strokeStyle = document.getElementById('colorPicker').value;
+                    canvas.style.cursor = 'crosshair';
+                }
+            }
+        }
+
+        function updateTextModeIndicator(mode) {
+            const indicator = document.getElementById('textModeIndicator');
+            if (mode === '移動') {
+                indicator.textContent = 'モード: テキスト移動中';
+                indicator.style.background = '#ff9800';
+            } else {
+                indicator.textContent = 'モード: テキスト追加';
+                indicator.style.background = '#22b8cf';
+            }
+        }
+
+        function getCanvasCoordinates(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function findTextAtPosition(x, y) {
+            if (!drawings[currentView]) return null;
+            
+            for (let i = drawings[currentView].length - 1; i >= 0; i--) {
+                const item = drawings[currentView][i];
+                if (item.type === 'text' && !item.deleted) {
                     ctx.font = `${item.fontSize}px Arial`;
-                    ctx.fillStyle = item.color;
-                    ctx.globalAlpha = item.opacity;
-                    ctx.fillText(item.text, item.x, item.y);
-                    ctx.globalAlpha = 1.0;
+                    const textWidth = ctx.measureText(item.text).width;
+                    const textHeight = item.fontSize;
                     
-                    // ドラッグ中のテキストにハイライト表示
-                    if (isDraggingText && draggedTextIndex === index) {
-                        const textWidth = ctx.measureText(item.text).width;
-                        ctx.strokeStyle = '#2196f3';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(
-                            item.x - 5, 
-                            item.y - item.fontSize - 5, 
-                            textWidth + 10, 
-                            item.fontSize + 10
-                        );
+                    if (x >= item.x - 5 && x <= item.x + textWidth + 5 &&
+                        y >= item.y - textHeight - 5 && y <= item.y + 5) {
+                        return i;
                     }
                 }
+            }
+            return null;
+        }
+
+        function handleCanvasMouseDown(e) {
+            const coords = getCanvasCoordinates(e.clientX, e.clientY);
+            clickStartPos = coords;
+            
+            if (currentTool === 'text') {
+                const textIndex = findTextAtPosition(coords.x, coords.y);
+                
+                if (textIndex !== null) {
+                    // テキスト上でマウスダウン → 長押し判定開始
+                    draggedTextIndex = textIndex;
+                    isLongPressTriggered = false;
+                    
+                    longPressTimer = setTimeout(() => {
+                        isLongPressTriggered = true;
+                        isDraggingText = true;
+                        const item = drawings[currentView][textIndex];
+                        dragOffset.x = coords.x - item.x;
+                        dragOffset.y = coords.y - item.y;
+                        canvas.classList.remove('text-cursor');
+                        canvas.classList.add('move-cursor');
+                        updateTextModeIndicator('移動');
+                        drawHeadOutline();
+                    }, LONG_PRESS_DURATION);
+                }
+            } else {
+                startDrawing(e.clientX, e.clientY);
+            }
+        }
+
+        function handleCanvasMouseMove(e) {
+            if (isDraggingText && draggedTextIndex !== null) {
+                const coords = getCanvasCoordinates(e.clientX, e.clientY);
+                const item = drawings[currentView][draggedTextIndex];
+                
+                item.x = coords.x - dragOffset.x;
+                item.y = coords.y - dragOffset.y;
+                
+                drawHeadOutline();
+            } else if (currentTool !== 'text') {
+                draw(e.clientX, e.clientY);
+            }
+        }
+
+        function handleCanvasMouseUp(e) {
+            // 長押しタイマーをクリア
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            
+            if (isDraggingText) {
+                // ドラッグ終了
+                isDraggingText = false;
+                draggedTextIndex = null;
+                canvas.classList.remove('move-cursor');
+                canvas.classList.add('text-cursor');
+                updateTextModeIndicator('追加');
+                drawHeadOutline();
+            } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
+                // 短いクリック（長押しではない）→ 新規テキスト追加
+                const coords = getCanvasCoordinates(e.clientX, e.clientY);
+                const textIndex = findTextAtPosition(coords.x, coords.y);
+                if (textIndex === null) {
+                    addText(coords.x, coords.y);
+                }
+            } else if (currentTool !== 'text') {
+                stopDrawing();
+            }
+            
+            // リセット
+            isLongPressTriggered = false;
+            draggedTextIndex = null;
+            clickStartPos = null;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            clickStartPos = coords;
+            
+            if (currentTool === 'text') {
+                const textIndex = findTextAtPosition(coords.x, coords.y);
+                
+                if (textIndex !== null) {
+                    draggedTextIndex = textIndex;
+                    isLongPressTriggered = false;
+                    
+                    longPressTimer = setTimeout(() => {
+                        isLongPressTriggered = true;
+                        isDraggingText = true;
+                        const item = drawings[currentView][textIndex];
+                        dragOffset.x = coords.x - item.x;
+                        dragOffset.y = coords.y - item.y;
+                        canvas.classList.remove('text-cursor');
+                        canvas.classList.add('move-cursor');
+                        updateTextModeIndicator('移動');
+                        drawHeadOutline();
+                    }, LONG_PRESS_DURATION);
+                }
+            } else {
+                startDrawing(touch.clientX, touch.clientY);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            
+            if (isDraggingText && draggedTextIndex !== null) {
+                const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+                const item = drawings[currentView][draggedTextIndex];
+                
+                item.x = coords.x - dragOffset.x;
+                item.y = coords.y - dragOffset.y;
+                
+                drawHeadOutline();
+            } else if (currentTool !== 'text') {
+                draw(touch.clientX, touch.clientY);
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            
+            // 長押しタイマーをクリア
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            
+            if (isDraggingText) {
+                isDraggingText = false;
+                draggedTextIndex = null;
+                canvas.classList.remove('move-cursor');
+                canvas.classList.add('text-cursor');
+                updateTextModeIndicator('追加');
+                drawHeadOutline();
+            } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
+                const textIndex = findTextAtPosition(clickStartPos.x, clickStartPos.y);
+                if (textIndex === null) {
+                    addText(clickStartPos.x, clickStartPos.y);
+                }
+            } else if (currentTool !== 'text') {
+                stopDrawing();
+            }
+            
+            isLongPressTriggered = false;
+            draggedTextIndex = null;
+            clickStartPos = null;
+        }
+
+        function addText(x, y) {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                alert('テキストを入力してください');
+                return;
+            }
+
+            const fontSize = parseInt(document.getElementById('textSize').value);
+            const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
+            const color = document.getElementById('textColor').value;
+
+            if (!drawings[currentView]) {
+                drawings[currentView] = [];
+            }
+
+            const textIndex = drawings[currentView].length;
+            
+            drawings[currentView].push({
+                type: 'text',
+                text: text,
+                x: x,
+                y: y,
+                fontSize: fontSize,
+                opacity: opacity,
+                color: color,
+                tool: 'text'
+            });
+
+            if (!textUndoStack[currentView]) {
+                textUndoStack[currentView] = [];
+            }
+            textUndoStack[currentView].push(textIndex);
+
+            if (textUndoStack[currentView].length > MAX_TEXT_UNDO) {
+                textUndoStack[currentView].shift();
+            }
+
+            drawHeadOutline();
+            updateUndoButtons();
+
+            textInput.value = '';
+        }
+
+        function startDrawing(clientX, clientY) {
+            if (currentTool === 'text') return;
+
+            isDrawing = true;
+            const coords = getCanvasCoordinates(clientX, clientY);
+
+            if (!drawings[currentView]) {
+                drawings[currentView] = [];
+            }
+
+            drawings[currentView].push({
+                type: 'line',
+                color: ctx.strokeStyle,
+                width: ctx.lineWidth,
+                points: [coords],
+                tool: currentTool
+            });
+
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+        }
+
+        function draw(clientX, clientY) {
+            if (!isDrawing || currentTool === 'text') return;
+
+            const coords = getCanvasCoordinates(clientX, clientY);
+            const currentLine = drawings[currentView][drawings[currentView].length - 1];
+            currentLine.points.push(coords);
+
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                
+                const lastIndex = drawings[currentView].length - 1;
+                const lastItem = drawings[currentView][lastIndex];
+                
+                if (lastItem.type === 'line') {
+                    if (lastItem.tool === 'pen') {
+                        if (!penUndoStack[currentView]) {
+                            penUndoStack[currentView] = [];
+                        }
+                        penUndoStack[currentView].push(lastIndex);
+                        
+                        if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
+                            penUndoStack[currentView].shift();
+                        }
+                    } else if (lastItem.tool === 'eraser') {
+                        if (!eraserUndoStack[currentView]) {
+                            eraserUndoStack[currentView] = [];
+                        }
+                        eraserUndoStack[currentView].push(lastIndex);
+                        
+                        if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
+                            eraserUndoStack[currentView].shift();
+                        }
+                    }
+                }
+                
+                updateUndoButtons();
+            }
+        }
+
+        function undoPen() {
+            if (!penUndoStack[currentView] || penUndoStack[currentView].length === 0) {
+                alert('これ以上ペン操作を戻せません（最大5回まで）');
+                return;
+            }
+
+            const indexToRemove = penUndoStack[currentView].pop();
+            
+            if (drawings[currentView][indexToRemove]) {
+                drawings[currentView][indexToRemove].deleted = true;
+            }
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function undoEraser() {
+            if (!eraserUndoStack[currentView] || eraserUndoStack[currentView].length === 0) {
+                alert('これ以上消しゴム操作を戻せません（最大5回まで）');
+                return;
+            }
+
+            const indexToRemove = eraserUndoStack[currentView].pop();
+            
+            if (drawings[currentView][indexToRemove]) {
+                drawings[currentView][indexToRemove].deleted = true;
+            }
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function undoText() {
+            if (!textUndoStack[currentView] || textUndoStack[currentView].length === 0) {
+                alert('これ以上テキスト操作を戻せません（最大5回まで）');
+                return;
+            }
+
+            const indexToRemove = textUndoStack[currentView].pop();
+            
+            if (drawings[currentView][indexToRemove]) {
+                drawings[currentView][indexToRemove].deleted = true;
+            }
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function clearCanvas() {
+            if (confirm('現在の視点の描画をクリアしますか？')) {
+                if (!clearHistory[currentView]) {
+                    clearHistory[currentView] = [];
+                }
+                
+                const beforeClear = {
+                    drawings: JSON.parse(JSON.stringify(drawings[currentView])),
+                    penStack: JSON.parse(JSON.stringify(penUndoStack[currentView])),
+                    eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView])),
+                    textStack: JSON.parse(JSON.stringify(textUndoStack[currentView]))
+                };
+                
+                clearHistory[currentView].push(beforeClear);
+                
+                if (clearHistory[currentView].length > MAX_CLEAR_UNDO) {
+                    clearHistory[currentView].shift();
+                }
+                
+                drawings[currentView] = [];
+                penUndoStack[currentView] = [];
+                eraserUndoStack[currentView] = [];
+                textUndoStack[currentView] = [];
+                
+                drawHeadOutline();
+                updateUndoButtons();
+            }
+        }
+
+        function undoClear() {
+            if (!clearHistory[currentView] || clearHistory[currentView].length === 0) {
+                alert('これ以上クリアを戻せません（最大1回まで）');
+                return;
+            }
+
+            const lastState = clearHistory[currentView].pop();
+            drawings[currentView] = lastState.drawings;
+            penUndoStack[currentView] = lastState.penStack;
+            eraserUndoStack[currentView] = lastState.eraserStack;
+            textUndoStack[currentView] = lastState.textStack;
+
+            drawHeadOutline();
+            updateUndoButtons();
+        }
+
+        function updateUndoButtons() {
+            const undoPenBtn = document.getElementById('undoPenBtn');
+            const undoEraserBtn = document.getElementById('undoEraserBtn');
+            const undoTextBtn = document.getElementById('undoTextBtn');
+            const undoClearBtn = document.getElementById('undoClearBtn');
+            
+            const penCount = document.getElementById('penCount');
+            const eraserCount = document.getElementById('eraserCount');
+            const textCount = document.getElementById('textCount');
+            const clearCount = document.getElementById('clearCount');
+            
+            const penLength = penUndoStack[currentView] ? penUndoStack[currentView].length : 0;
+            const eraserLength = eraserUndoStack[currentView] ? eraserUndoStack[currentView].length : 0;
+            const textLength = textUndoStack[currentView] ? textUndoStack[currentView].length : 0;
+            const clearLength = clearHistory[currentView] ? clearHistory[currentView].length : 0;
+
+            penCount.textContent = penLength;
+            eraserCount.textContent = eraserLength;
+            textCount.textContent = textLength;
+            clearCount.textContent = clearLength;
+
+            undoPenBtn.disabled = penLength === 0;
+            undoEraserBtn.disabled = eraserLength === 0;
+            undoTextBtn.disabled = textLength === 0;
+            undoClearBtn.disabled = clearLength === 0;
+        }
+
+        function saveDrawing() {
+            try {
+                localStorage.setItem('headDrawings', JSON.stringify(drawings));
+                localStorage.setItem('headPenUndoStack', JSON.stringify(penUndoStack));
+                localStorage.setItem('headEraserUndoStack', JSON.stringify(eraserUndoStack));
+                localStorage.setItem('headTextUndoStack', JSON.stringify(textUndoStack));
+                localStorage.setItem('headClearHistory', JSON.stringify(clearHistory));
+                
+                const dataURL = canvas.toDataURL('image/png');
+                localStorage.setItem(`headDrawing_${currentView}`, dataURL);
+                
+                alert('描画を保存しました！');
+            } catch (e) {
+                console.error('保存エラー:', e);
+                alert('保存に失敗しました。ストレージ容量を確認してください。');
+            }
+        }
+
+        window.addEventListener('load', () => {
+            init();
+            
+            try {
+                const savedDrawings = localStorage.getItem('headDrawings');
+                const savedPenStack = localStorage.getItem('headPenUndoStack');
+                const savedEraserStack = localStorage.getItem('headEraserUndoStack');
+                const savedTextStack = localStorage.getItem('headTextUndoStack');
+                const savedClearHistory = localStorage.getItem('headClearHistory');
+                
+                if (savedDrawings) {
+                    drawings = JSON.parse(savedDrawings);
+                }
+                
+                if (savedPenStack) {
+                    penUndoStack = JSON.parse(savedPenStack);
+                }
+                
+                if (savedEraserStack) {
+                    eraserUndoStack = JSON.parse(savedEraserStack);
+                }
+                
+                if (savedTextStack) {
+                    textUndoStack = JSON.parse(savedTextStack);
+                }
+                
+                if (savedClearHistory) {
+                    clearHistory = JSON.parse(savedClearHistory);
+                }
+                
+                drawHeadOutline();
+                updateUndoButtons();
+            } catch (e) {
+                console.error('読み込みエラー:', e);
             }
         });
-    }
-}
-
-function changeView(view) {
-    currentView = view;
-
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-
-    drawHeadOutline();
-    updateUndoButtons();
-}
-
-function setTool(tool) {
-    currentTool = tool;
-    isDraggingText = false;
-    draggedTextIndex = null;
-    isLongPressTriggered = false;
-    
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-    }
-    
-    document.querySelectorAll('.tool-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-
-    const penEraserControls = document.getElementById('penEraserControls');
-    const textControls = document.getElementById('textControls');
-
-    if (tool === 'text') {
-        penEraserControls.style.display = 'none';
-        textControls.style.display = 'block';
-        canvas.classList.add('text-cursor');
-        canvas.style.cursor = 'text';
-        updateTextModeIndicator('追加');
-    } else {
-        penEraserControls.style.display = 'flex';
-        textControls.style.display = 'none';
-        canvas.classList.remove('text-cursor');
-        canvas.classList.remove('move-cursor');
-        
-        if (tool === 'eraser') {
-            ctx.strokeStyle = 'white';
-            canvas.style.cursor = 'grab';
-        } else {
-            ctx.strokeStyle = document.getElementById('colorPicker').value;
-            canvas.style.cursor = 'crosshair';
-        }
-    }
-}
-
-function updateTextModeIndicator(mode) {
-    const indicator = document.getElementById('textModeIndicator');
-    if (mode === '移動') {
-        indicator.textContent = 'モード: テキスト移動中';
-        indicator.style.background = '#ff9800';
-    } else {
-        indicator.textContent = 'モード: テキスト追加';
-        indicator.style.background = '#22b8cf';
-    }
-}
-
-function getCanvasCoordinates(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-    };
-}
-
-function findTextAtPosition(x, y) {
-    if (!drawings[currentView]) return null;
-    
-    for (let i = drawings[currentView].length - 1; i >= 0; i--) {
-        const item = drawings[currentView][i];
-        if (item.type === 'text' && !item.deleted) {
-            ctx.font = `${item.fontSize}px Arial`;
-            const textWidth = ctx.measureText(item.text).width;
-            const textHeight = item.fontSize;
-            
-            if (x >= item.x - 5 && x <= item.x + textWidth + 5 &&
-                y >= item.y - textHeight - 5 && y <= item.y + 5) {
-                return i;
-            }
-        }
-    }
-    return null;
-}
-
-function handleCanvasMouseDown(e) {
-    const coords = getCanvasCoordinates(e.clientX, e.clientY);
-    clickStartPos = coords;
-    
-    if (currentTool === 'text') {
-        const textIndex = findTextAtPosition(coords.x, coords.y);
-        
-        if (textIndex !== null) {
-            // テキスト上でマウスダウン → 長押し判定開始
-            draggedTextIndex = textIndex;
-            isLongPressTriggered = false;
-            
-            longPressTimer = setTimeout(() => {
-                isLongPressTriggered = true;
-                isDraggingText = true;
-                const item = drawings[currentView][textIndex];
-                dragOffset.x = coords.x - item.x;
-                dragOffset.y = coords.y - item.y;
-                canvas.classList.remove('text-cursor');
-                canvas.classList.add('move-cursor');
-                updateTextModeIndicator('移動');
-                drawHeadOutline();
-            }, LONG_PRESS_DURATION);
-        }
-    } else {
-        startDrawing(e.clientX, e.clientY);
-    }
-}
-
-function handleCanvasMouseMove(e) {
-    if (isDraggingText && draggedTextIndex !== null) {
-        const coords = getCanvasCoordinates(e.clientX, e.clientY);
-        const item = drawings[currentView][draggedTextIndex];
-        
-        item.x = coords.x - dragOffset.x;
-        item.y = coords.y - dragOffset.y;
-        
-        drawHeadOutline();
-    } else if (currentTool !== 'text') {
-        draw(e.clientX, e.clientY);
-    }
-}
-
-function handleCanvasMouseUp(e) {
-    // 長押しタイマーをクリア
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-    }
-    
-    if (isDraggingText) {
-        // ドラッグ終了
-        isDraggingText = false;
-        draggedTextIndex = null;
-        canvas.classList.remove('move-cursor');
-        canvas.classList.add('text-cursor');
-        updateTextModeIndicator('追加');
-        drawHeadOutline();
-    } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
-        // 短いクリック（長押しではない）→ 新規テキスト追加
-        const coords = getCanvasCoordinates(e.clientX, e.clientY);
-        const textIndex = findTextAtPosition(coords.x, coords.y);
-        if (textIndex === null) {
-            addText(coords.x, coords.y);
-        }
-    } else if (currentTool !== 'text') {
-        stopDrawing();
-    }
-    
-    // リセット
-    isLongPressTriggered = false;
-    draggedTextIndex = null;
-    clickStartPos = null;
-}
-
-function handleTouchStart(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-    clickStartPos = coords;
-    
-    if (currentTool === 'text') {
-        const textIndex = findTextAtPosition(coords.x, coords.y);
-        
-        if (textIndex !== null) {
-            draggedTextIndex = textIndex;
-            isLongPressTriggered = false;
-            
-            longPressTimer = setTimeout(() => {
-                isLongPressTriggered = true;
-                isDraggingText = true;
-                const item = drawings[currentView][textIndex];
-                dragOffset.x = coords.x - item.x;
-                dragOffset.y = coords.y - item.y;
-                canvas.classList.remove('text-cursor');
-                canvas.classList.add('move-cursor');
-                updateTextModeIndicator('移動');
-                drawHeadOutline();
-            }, LONG_PRESS_DURATION);
-        }
-    } else {
-        startDrawing(touch.clientX, touch.clientY);
-    }
-}
-
-function handleTouchMove(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    
-    if (isDraggingText && draggedTextIndex !== null) {
-        const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-        const item = drawings[currentView][draggedTextIndex];
-        
-        item.x = coords.x - dragOffset.x;
-        item.y = coords.y - dragOffset.y;
-        
-        drawHeadOutline();
-    } else if (currentTool !== 'text') {
-        draw(touch.clientX, touch.clientY);
-    }
-}
-
-function handleTouchEnd(e) {
-    e.preventDefault();
-    
-    // 長押しタイマーをクリア
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-    }
-    
-    if (isDraggingText) {
-        isDraggingText = false;
-        draggedTextIndex = null;
-        canvas.classList.remove('move-cursor');
-        canvas.classList.add('text-cursor');
-        updateTextModeIndicator('追加');
-        drawHeadOutline();
-    } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
-        const textIndex = findTextAtPosition(clickStartPos.x, clickStartPos.y);
-        if (textIndex === null) {
-            addText(clickStartPos.x, clickStartPos.y);
-        }
-    } else if (currentTool !== 'text') {
-        stopDrawing();
-    }
-    
-    isLongPressTriggered = false;
-    draggedTextIndex = null;
-    clickStartPos = null;
-}
-
-function addText(x, y) {
-    const textInput = document.getElementById('textInput');
-    const text = textInput.value.trim();
-    
-    if (!text) {
-        alert('テキストを入力してください');
-        return;
-    }
-
-    const fontSize = parseInt(document.getElementById('textSize').value);
-    const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
-    const color = document.getElementById('textColor').value;
-
-    if (!drawings[currentView]) {
-        drawings[currentView] = [];
-    }
-
-    const textIndex = drawings[currentView].length;
-    
-    drawings[currentView].push({
-        type: 'text',
-        text: text,
-        x: x,
-        y: y,
-        fontSize: fontSize,
-        opacity: opacity,
-        color: color,
-        tool: 'text'
-    });
-
-    if (!textUndoStack[currentView]) {
-        textUndoStack[currentView] = [];
-    }
-    textUndoStack[currentView].push(textIndex);
-
-    if (textUndoStack[currentView].length > MAX_TEXT_UNDO) {
-        textUndoStack[currentView].shift();
-    }
-
-    drawHeadOutline();
-    updateUndoButtons();
-
-    textInput.value = '';
-}
-
-function startDrawing(clientX, clientY) {
-    if (currentTool === 'text') return;
-
-    isDrawing = true;
-    const coords = getCanvasCoordinates(clientX, clientY);
-
-    if (!drawings[currentView]) {
-        drawings[currentView] = [];
-    }
-
-    drawings[currentView].push({
-        type: 'line',
-        color: ctx.strokeStyle,
-        width: ctx.lineWidth,
-        points: [coords],
-        tool: currentTool
-    });
-
-    ctx.beginPath();
-    ctx.moveTo(coords.x, coords.y);
-}
-
-function draw(clientX, clientY) {
-    if (!isDrawing || currentTool === 'text') return;
-
-    const coords = getCanvasCoordinates(clientX, clientY);
-    const currentLine = drawings[currentView][drawings[currentView].length - 1];
-    currentLine.points.push(coords);
-
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-}
-
-function stopDrawing() {
-    if (isDrawing) {
-        isDrawing = false;
-        
-        const lastIndex = drawings[currentView].length - 1;
-        const lastItem = drawings[currentView][lastIndex];
-        
-        if (lastItem.type === 'line') {
-            if (lastItem.tool === 'pen') {
-                if (!penUndoStack[currentView]) {
-                    penUndoStack[currentView] = [];
-                }
-                penUndoStack[currentView].push(lastIndex);
-                
-                if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
-                    penUndoStack[currentView].shift();
-                }
-            } else if (lastItem.tool === 'eraser') {
-                if (!eraserUndoStack[currentView]) {
-                    eraserUndoStack[currentView] = [];
-                }
-                eraserUndoStack[currentView].push(lastIndex);
-                
-                if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
-                    eraserUndoStack[currentView].shift();
-                }
-            }
-        }
-        
-        updateUndoButtons();
-    }
-}
-
-function undoPen() {
-    if (!penUndoStack[currentView] || penUndoStack[currentView].length === 0) {
-        alert('これ以上ペン操作を戻せません（最大5回まで）');
-        return;
-    }
-
-    const indexToRemove = penUndoStack[currentView].pop();
-    
-    if (drawings[currentView][indexToRemove]) {
-        drawings[currentView][indexToRemove].deleted = true;
-    }
-
-    drawHeadOutline();
-    updateUndoButtons();
-}
-
-function undoEraser() {
-    if (!eraserUndoStack[currentView] || eraserUndoStack[currentView].length === 0) {
-        alert('これ以上消しゴム操作を戻せません（最大5回まで）');
-        return;
-    }
-
-    const indexToRemove = eraserUndoStack[currentView].pop();
-    
-    if (drawings[currentView][indexToRemove]) {
-        drawings[currentView][indexToRemove].deleted = true;
-    }
-
-    drawHeadOutline();
-    updateUndoButtons();
-}
-
-function undoText() {
-    if (!textUndoStack[currentView] || textUndoStack[currentView].length === 0) {
-        alert('これ以上テキスト操作を戻せません（最大5回まで）');
-        return;
-    }
-
-    const indexToRemove = textUndoStack[currentView].pop();
-    
-    if (drawings[currentView][indexToRemove]) {
-        drawings[currentView][indexToRemove].deleted = true;
-    }
-
-    drawHeadOutline();
-    updateUndoButtons();
-}
-
-function clearCanvas() {
-    if (confirm('現在の視点の描画をクリアしますか？')) {
-        if (!clearHistory[currentView]) {
-            clearHistory[currentView] = [];
-        }
-        
-        const beforeClear = {
-            drawings: JSON.parse(JSON.stringify(drawings[currentView])),
-            penStack: JSON.parse(JSON.stringify(penUndoStack[currentView])),
-            eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView])),
-            textStack: JSON.parse(JSON.stringify(textUndoStack[currentView]))
-        };
-        
-        clearHistory[currentView].push(beforeClear);
-        
-        if (clearHistory[currentView].length > MAX_CLEAR_UNDO) {
-            clearHistory[currentView].shift();
-        }
-        
-        drawings[currentView] = [];
-        penUndoStack[currentView] = [];
-        eraserUndoStack[currentView] = [];
-        textUndoStack[currentView] = [];
-        
-        drawHeadOutline();
-        updateUndoButtons();
-    }
-}
-
-function undoClear() {
-    if (!clearHistory[currentView] || clearHistory[currentView].length === 0) {
-        alert('これ以上クリアを戻せません（最大1回まで）');
-        return;
-    }
-
-    const lastState = clearHistory[currentView].pop();
-    drawings[currentView] = lastState.drawings;
-    penUndoStack[currentView] = lastState.penStack;
-    eraserUndoStack[currentView] = lastState.eraserStack;
-    textUndoStack[currentView] = lastState.textStack;
-
-    drawHeadOutline();
-    updateUndoButtons();
-}
-
-function updateUndoButtons() {
-    const undoPenBtn = document.getElementById('undoPenBtn');
-    const undoEraserBtn = document.getElementById('undoEraserBtn');
-    const undoTextBtn = document.getElementById('undoTextBtn');
-    const undoClearBtn = document.getElementById('undoClearBtn');
-    
-    const penCount = document.getElementById('penCount');
-    const eraserCount = document.getElementById('eraserCount');
-    const textCount = document.getElementById('textCount');
-    const clearCount = document.getElementById('clearCount');
-    
-    const penLength = penUndoStack[currentView] ? penUndoStack[currentView].length : 0;
-    const eraserLength = eraserUndoStack[currentView] ? eraserUndoStack[currentView].length : 0;
-    const textLength = textUndoStack[currentView] ? textUndoStack[currentView].length : 0;
-    const clearLength = clearHistory[currentView] ? clearHistory[currentView].length : 0;
-
-    penCount.textContent = penLength;
-    eraserCount.textContent = eraserLength;
-    textCount.textContent = textLength;
-    clearCount.textContent = clearLength;
-
-    undoPenBtn.disabled = penLength === 0;
-    undoEraserBtn.disabled = eraserLength === 0;
-    undoTextBtn.disabled = textLength === 0;
-    undoClearBtn.disabled = clearLength === 0;
-}
-
-function saveDrawing() {
-    try {
-        localStorage.setItem('headDrawings', JSON.stringify(drawings));
-        localStorage.setItem('headPenUndoStack', JSON.stringify(penUndoStack));
-        localStorage.setItem('headEraserUndoStack', JSON.stringify(eraserUndoStack));
-        localStorage.setItem('headTextUndoStack', JSON.stringify(textUndoStack));
-        localStorage.setItem('headClearHistory', JSON.stringify(clearHistory));
-        
-        const dataURL = canvas.toDataURL('image/png');
-        localStorage.setItem(`headDrawing_${currentView}`, dataURL);
-        
-        alert('描画を保存しました！');
-    } catch (e) {
-        console.error('保存エラー:', e);
-        alert('保存に失敗しました。ストレージ容量を確認してください。');
-    }
-}
-
-window.addEventListener('load', () => {
-    init();
-    
-    try {
-        const savedDrawings = localStorage.getItem('headDrawings');
-        const savedPenStack = localStorage.getItem('headPenUndoStack');
-        const savedEraserStack = localStorage.getItem('headEraserUndoStack');
-        const savedTextStack = localStorage.getItem('headTextUndoStack');
-        const savedClearHistory = localStorage.getItem('headClearHistory');
-        
-        if (savedDrawings) {
-            drawings = JSON.parse(savedDrawings);
-        }
-        
-        if (savedPenStack) {
-            penUndoStack = JSON.parse(savedPenStack);
-        }
-        
-        if (savedEraserStack) {
-            eraserUndoStack = JSON.parse(savedEraserStack);
-        }
-        
-        if (savedTextStack) {
-            textUndoStack = JSON.parse(savedTextStack);
-        }
-        
-        if (savedClearHistory) {
-            clearHistory = JSON.parse(savedClearHistory);
-        }
-        
-        drawHeadOutline();
-        updateUndoButtons();
-    } catch (e) {
-        console.error('読み込みエラー:', e);
-    }
-});
     </script>
 </body>
 </html>
