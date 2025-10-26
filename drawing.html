@@ -100,7 +100,7 @@
 
         .tool-buttons {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -170,6 +170,41 @@
             cursor: pointer;
         }
 
+        .text-controls {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+
+        .text-input-group {
+            margin-bottom: 10px;
+        }
+
+        .text-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .text-input-group input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .text-input-group input[type="range"] {
+            width: 100%;
+        }
+
+        .opacity-value, .font-size-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
         .action-buttons {
             display: grid;
             grid-template-columns: 1fr;
@@ -214,6 +249,23 @@
         }
 
         .undo-eraser-btn:disabled {
+            background: #ced4da;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+
+        .undo-text-btn {
+            background: #22b8cf;
+            color: white;
+        }
+
+        .undo-text-btn:hover:not(:disabled) {
+            background: #15aabf;
+            transform: translateY(-2px);
+        }
+
+        .undo-text-btn:disabled {
             background: #ced4da;
             cursor: not-allowed;
             transform: none;
@@ -287,6 +339,10 @@
             display: block;
         }
 
+        canvas.text-cursor {
+            cursor: text;
+        }
+
         .back-link {
             display: inline-block;
             padding: 15px 30px;
@@ -313,6 +369,10 @@
             }
 
             .view-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tool-buttons {
                 grid-template-columns: repeat(2, 1fr);
             }
 
@@ -358,8 +418,9 @@
                     <div class="tool-buttons">
                         <button class="tool-btn active" onclick="setTool('pen')">ペン</button>
                         <button class="tool-btn" onclick="setTool('eraser')">消しゴム</button>
+                        <button class="tool-btn" onclick="setTool('text')">テキスト</button>
                     </div>
-                    <div class="color-size-group">
+                    <div class="color-size-group" id="penEraserControls">
                         <div class="color-picker-wrapper">
                             <label for="colorPicker">色:</label>
                             <input type="color" id="colorPicker" value="#000000">
@@ -367,6 +428,25 @@
                         <div class="size-control">
                             <label for="brushSize">太さ: <span id="sizeValue">3</span>px</label>
                             <input type="range" id="brushSize" min="1" max="20" value="3">
+                        </div>
+                    </div>
+
+                    <div class="text-controls" id="textControls" style="display: none;">
+                        <div class="text-input-group">
+                            <label for="textInput">テキスト:</label>
+                            <input type="text" id="textInput" placeholder="入力してキャンバスをクリック">
+                        </div>
+                        <div class="text-input-group">
+                            <label for="textColor">色:</label>
+                            <input type="color" id="textColor" value="#000000" style="width: 100%; height: 40px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer;">
+                        </div>
+                        <div class="text-input-group">
+                            <label for="textSize">サイズ: <span class="font-size-value" id="textSizeValue">24</span>px</label>
+                            <input type="range" id="textSize" min="12" max="72" value="24">
+                        </div>
+                        <div class="text-input-group">
+                            <label for="textOpacity">透過度: <span class="opacity-value" id="textOpacityValue">50</span>%</label>
+                            <input type="range" id="textOpacity" min="10" max="100" value="50">
                         </div>
                     </div>
                 </div>
@@ -380,6 +460,9 @@
                         <button class="action-btn undo-eraser-btn" id="undoEraserBtn" onclick="undoEraser()" disabled>
                             ↶ 消しゴムを戻す (<span id="eraserCount">0</span>/5)
                         </button>
+                        <button class="action-btn undo-text-btn" id="undoTextBtn" onclick="undoText()" disabled>
+                            ↶ テキストを戻す (<span id="textCount">0</span>/5)
+                        </button>
                         <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
                         <button class="action-btn undo-clear-btn" id="undoClearBtn" onclick="undoClear()" disabled>
                             ↶ クリアを戻す (<span id="clearCount">0</span>/1)
@@ -388,7 +471,7 @@
                     </div>
                     <div class="undo-info">
                         各操作は最大回数まで戻せます<br>
-                        ペン:5回 / 消しゴム:5回 / クリア:1回
+                        ペン:5回 / 消しゴム:5回 / テキスト:5回 / クリア:1回
                     </div>
                 </div>
             </div>
@@ -411,13 +494,14 @@
         let currentView = 'front';
         let drawings = {};
         
-        // 取り消し可能な操作のインデックスを記録
-        let penUndoStack = {};      // ペンで追加した線のインデックス
-        let eraserUndoStack = {};   // 消しゴムで追加した線のインデックス
-        let clearHistory = {};      // クリア前の状態
+        let penUndoStack = {};
+        let eraserUndoStack = {};
+        let textUndoStack = {};
+        let clearHistory = {};
         
         const MAX_PEN_UNDO = 5;
         const MAX_ERASER_UNDO = 5;
+        const MAX_TEXT_UNDO = 5;
         const MAX_CLEAR_UNDO = 1;
         
         const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
@@ -436,12 +520,13 @@
                 drawings[view] = [];
                 penUndoStack[view] = [];
                 eraserUndoStack[view] = [];
+                textUndoStack[view] = [];
                 clearHistory[view] = [];
             });
 
             drawHeadOutline();
 
-            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousedown', handleCanvasClick);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseout', stopDrawing);
@@ -459,6 +544,14 @@
             document.getElementById('brushSize').addEventListener('input', (e) => {
                 ctx.lineWidth = e.target.value;
                 document.getElementById('sizeValue').textContent = e.target.value;
+            });
+
+            document.getElementById('textSize').addEventListener('input', (e) => {
+                document.getElementById('textSizeValue').textContent = e.target.value;
+            });
+
+            document.getElementById('textOpacity').addEventListener('input', (e) => {
+                document.getElementById('textOpacityValue').textContent = e.target.value;
             });
 
             ctx.strokeStyle = '#000000';
@@ -491,16 +584,27 @@
                 
                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                 
+                // 削除されていない要素を描画
                 if (drawings[currentView]) {
-                    drawings[currentView].forEach(line => {
-                        ctx.strokeStyle = line.color;
-                        ctx.lineWidth = line.width;
-                        ctx.beginPath();
-                        ctx.moveTo(line.points[0].x, line.points[0].y);
-                        for (let i = 1; i < line.points.length; i++) {
-                            ctx.lineTo(line.points[i].x, line.points[i].y);
+                    drawings[currentView].forEach(item => {
+                        if (!item.deleted) {
+                            if (item.type === 'line') {
+                                ctx.strokeStyle = item.color;
+                                ctx.lineWidth = item.width;
+                                ctx.beginPath();
+                                ctx.moveTo(item.points[0].x, item.points[0].y);
+                                for (let i = 1; i < item.points.length; i++) {
+                                    ctx.lineTo(item.points[i].x, item.points[i].y);
+                                }
+                                ctx.stroke();
+                            } else if (item.type === 'text') {
+                                ctx.font = `${item.fontSize}px Arial`;
+                                ctx.fillStyle = item.color;
+                                ctx.globalAlpha = item.opacity;
+                                ctx.fillText(item.text, item.x, item.y);
+                                ctx.globalAlpha = 1.0;
+                            }
                         }
-                        ctx.stroke();
                     });
                 }
 
@@ -559,16 +663,91 @@
             });
             event.target.classList.add('active');
 
-            if (tool === 'eraser') {
-                ctx.strokeStyle = 'white';
-                canvas.style.cursor = 'grab';
+            const penEraserControls = document.getElementById('penEraserControls');
+            const textControls = document.getElementById('textControls');
+
+            if (tool === 'text') {
+                penEraserControls.style.display = 'none';
+                textControls.style.display = 'block';
+                canvas.classList.add('text-cursor');
+                canvas.style.cursor = 'text';
             } else {
-                ctx.strokeStyle = document.getElementById('colorPicker').value;
-                canvas.style.cursor = 'crosshair';
+                penEraserControls.style.display = 'flex';
+                textControls.style.display = 'none';
+                canvas.classList.remove('text-cursor');
+                
+                if (tool === 'eraser') {
+                    ctx.strokeStyle = 'white';
+                    canvas.style.cursor = 'grab';
+                } else {
+                    ctx.strokeStyle = document.getElementById('colorPicker').value;
+                    canvas.style.cursor = 'crosshair';
+                }
             }
         }
 
+        function handleCanvasClick(e) {
+            if (currentTool === 'text') {
+                addText(e);
+            } else {
+                startDrawing(e);
+            }
+        }
+
+        function addText(e) {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                alert('テキストを入力してください');
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            const fontSize = parseInt(document.getElementById('textSize').value);
+            const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
+            const color = document.getElementById('textColor').value;
+
+            if (!drawings[currentView]) {
+                drawings[currentView] = [];
+            }
+
+            const textIndex = drawings[currentView].length;
+            
+            drawings[currentView].push({
+                type: 'text',
+                text: text,
+                x: x,
+                y: y,
+                fontSize: fontSize,
+                opacity: opacity,
+                color: color,
+                tool: 'text'
+            });
+
+            // テキストスタックに追加
+            if (!textUndoStack[currentView]) {
+                textUndoStack[currentView] = [];
+            }
+            textUndoStack[currentView].push(textIndex);
+
+            if (textUndoStack[currentView].length > MAX_TEXT_UNDO) {
+                textUndoStack[currentView].shift();
+            }
+
+            drawHeadOutline();
+            updateUndoButtons();
+
+            // テキスト入力欄をクリア
+            textInput.value = '';
+        }
+
         function startDrawing(e) {
+            if (currentTool === 'text') return;
+
             isDrawing = true;
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -579,6 +758,7 @@
             }
 
             drawings[currentView].push({
+                type: 'line',
                 color: ctx.strokeStyle,
                 width: ctx.lineWidth,
                 points: [{x, y}],
@@ -590,7 +770,7 @@
         }
 
         function draw(e) {
-            if (!isDrawing) return;
+            if (!isDrawing || currentTool === 'text') return;
 
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -608,28 +788,27 @@
                 isDrawing = false;
                 
                 const lastIndex = drawings[currentView].length - 1;
-                const lastLine = drawings[currentView][lastIndex];
+                const lastItem = drawings[currentView][lastIndex];
                 
-                // 追加した線のインデックスを記録
-                if (lastLine.tool === 'pen') {
-                    if (!penUndoStack[currentView]) {
-                        penUndoStack[currentView] = [];
-                    }
-                    penUndoStack[currentView].push(lastIndex);
-                    
-                    // 最大5個まで
-                    if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
-                        penUndoStack[currentView].shift();
-                    }
-                } else if (lastLine.tool === 'eraser') {
-                    if (!eraserUndoStack[currentView]) {
-                        eraserUndoStack[currentView] = [];
-                    }
-                    eraserUndoStack[currentView].push(lastIndex);
-                    
-                    // 最大5個まで
-                    if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
-                        eraserUndoStack[currentView].shift();
+                if (lastItem.type === 'line') {
+                    if (lastItem.tool === 'pen') {
+                        if (!penUndoStack[currentView]) {
+                            penUndoStack[currentView] = [];
+                        }
+                        penUndoStack[currentView].push(lastIndex);
+                        
+                        if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
+                            penUndoStack[currentView].shift();
+                        }
+                    } else if (lastItem.tool === 'eraser') {
+                        if (!eraserUndoStack[currentView]) {
+                            eraserUndoStack[currentView] = [];
+                        }
+                        eraserUndoStack[currentView].push(lastIndex);
+                        
+                        if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
+                            eraserUndoStack[currentView].shift();
+                        }
                     }
                 }
                 
@@ -654,16 +833,12 @@
                 return;
             }
 
-            // 最後のペン操作のインデックスを取得
             const indexToRemove = penUndoStack[currentView].pop();
             
-            // その線を削除済みマークする
             if (drawings[currentView][indexToRemove]) {
                 drawings[currentView][indexToRemove].deleted = true;
             }
 
-            // 他のスタックのインデックスを調整する必要はない（インデックスは固定）
-            
             drawHeadOutline();
             updateUndoButtons();
         }
@@ -674,10 +849,8 @@
                 return;
             }
 
-            // 最後の消しゴム操作のインデックスを取得
             const indexToRemove = eraserUndoStack[currentView].pop();
             
-            // その線を削除済みマークする
             if (drawings[currentView][indexToRemove]) {
                 drawings[currentView][indexToRemove].deleted = true;
             }
@@ -686,78 +859,20 @@
             updateUndoButtons();
         }
 
-        // 描画時に削除済みマークがついた線はスキップ
-        function drawHeadOutline() {
-            const container = document.getElementById('canvasContainer');
-            const loadingDiv = container.querySelector('.loading');
-            
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const img = new Image();
-            const fileName = `head-${currentView}.svg`;
-            
-            if (loadingDiv) {
-                loadingDiv.textContent = `${currentView}を読み込み中...`;
-                loadingDiv.style.display = 'block';
+        function undoText() {
+            if (!textUndoStack[currentView] || textUndoStack[currentView].length === 0) {
+                alert('これ以上テキスト操作を戻せません（最大5回まで）');
+                return;
             }
 
-            img.onload = function() {
-                const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
-                const x = (canvas.width - img.width * scale) / 2;
-                const y = (canvas.height - img.height * scale) / 2;
-                
-                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                
-                // 削除されていない線だけを描画
-                if (drawings[currentView]) {
-                    drawings[currentView].forEach(line => {
-                        if (!line.deleted) {
-                            ctx.strokeStyle = line.color;
-                            ctx.lineWidth = line.width;
-                            ctx.beginPath();
-                            ctx.moveTo(line.points[0].x, line.points[0].y);
-                            for (let i = 1; i < line.points.length; i++) {
-                                ctx.lineTo(line.points[i].x, line.points[i].y);
-                            }
-                            ctx.stroke();
-                        }
-                    });
-                }
+            const indexToRemove = textUndoStack[currentView].pop();
+            
+            if (drawings[currentView][indexToRemove]) {
+                drawings[currentView][indexToRemove].deleted = true;
+            }
 
-                if (currentTool === 'pen') {
-                    ctx.strokeStyle = document.getElementById('colorPicker').value;
-                } else {
-                    ctx.strokeStyle = 'white';
-                }
-                ctx.lineWidth = document.getElementById('brushSize').value;
-
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            };
-
-            img.onerror = function() {
-                console.error(`画像の読み込みに失敗: ${fileName}`);
-                if (loadingDiv) {
-                    loadingDiv.textContent = `エラー: ${fileName}が見つかりません`;
-                    loadingDiv.style.color = '#ff6b6b';
-                }
-                
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(canvas.width / 2, canvas.height / 2, 200, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                setTimeout(() => {
-                    if (loadingDiv) {
-                        loadingDiv.style.display = 'none';
-                    }
-                }, 2000);
-            };
-
-            img.src = fileName;
+            drawHeadOutline();
+            updateUndoButtons();
         }
 
         function clearCanvas() {
@@ -769,7 +884,8 @@
                 const beforeClear = {
                     drawings: JSON.parse(JSON.stringify(drawings[currentView])),
                     penStack: JSON.parse(JSON.stringify(penUndoStack[currentView])),
-                    eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView]))
+                    eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView])),
+                    textStack: JSON.parse(JSON.stringify(textUndoStack[currentView]))
                 };
                 
                 clearHistory[currentView].push(beforeClear);
@@ -781,6 +897,7 @@
                 drawings[currentView] = [];
                 penUndoStack[currentView] = [];
                 eraserUndoStack[currentView] = [];
+                textUndoStack[currentView] = [];
                 
                 drawHeadOutline();
                 updateUndoButtons();
@@ -797,6 +914,7 @@
             drawings[currentView] = lastState.drawings;
             penUndoStack[currentView] = lastState.penStack;
             eraserUndoStack[currentView] = lastState.eraserStack;
+            textUndoStack[currentView] = lastState.textStack;
 
             drawHeadOutline();
             updateUndoButtons();
@@ -805,22 +923,27 @@
         function updateUndoButtons() {
             const undoPenBtn = document.getElementById('undoPenBtn');
             const undoEraserBtn = document.getElementById('undoEraserBtn');
+            const undoTextBtn = document.getElementById('undoTextBtn');
             const undoClearBtn = document.getElementById('undoClearBtn');
             
             const penCount = document.getElementById('penCount');
             const eraserCount = document.getElementById('eraserCount');
+            const textCount = document.getElementById('textCount');
             const clearCount = document.getElementById('clearCount');
             
             const penLength = penUndoStack[currentView] ? penUndoStack[currentView].length : 0;
             const eraserLength = eraserUndoStack[currentView] ? eraserUndoStack[currentView].length : 0;
+            const textLength = textUndoStack[currentView] ? textUndoStack[currentView].length : 0;
             const clearLength = clearHistory[currentView] ? clearHistory[currentView].length : 0;
 
             penCount.textContent = penLength;
             eraserCount.textContent = eraserLength;
+            textCount.textContent = textLength;
             clearCount.textContent = clearLength;
 
             undoPenBtn.disabled = penLength === 0;
             undoEraserBtn.disabled = eraserLength === 0;
+            undoTextBtn.disabled = textLength === 0;
             undoClearBtn.disabled = clearLength === 0;
         }
 
@@ -829,6 +952,7 @@
                 localStorage.setItem('headDrawings', JSON.stringify(drawings));
                 localStorage.setItem('headPenUndoStack', JSON.stringify(penUndoStack));
                 localStorage.setItem('headEraserUndoStack', JSON.stringify(eraserUndoStack));
+                localStorage.setItem('headTextUndoStack', JSON.stringify(textUndoStack));
                 localStorage.setItem('headClearHistory', JSON.stringify(clearHistory));
                 
                 const dataURL = canvas.toDataURL('image/png');
@@ -848,6 +972,7 @@
                 const savedDrawings = localStorage.getItem('headDrawings');
                 const savedPenStack = localStorage.getItem('headPenUndoStack');
                 const savedEraserStack = localStorage.getItem('headEraserUndoStack');
+                const savedTextStack = localStorage.getItem('headTextUndoStack');
                 const savedClearHistory = localStorage.getItem('headClearHistory');
                 
                 if (savedDrawings) {
@@ -860,6 +985,10 @@
                 
                 if (savedEraserStack) {
                     eraserUndoStack = JSON.parse(savedEraserStack);
+                }
+                
+                if (savedTextStack) {
+                    textUndoStack = JSON.parse(savedTextStack);
                 }
                 
                 if (savedClearHistory) {
