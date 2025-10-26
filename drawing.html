@@ -71,7 +71,7 @@
 
         .view-buttons {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -217,18 +217,21 @@
 
         .action-buttons {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
         }
 
         .action-btn {
-            padding: 12px;
+            padding: 10px 8px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.85em;
             font-weight: bold;
             transition: all 0.3s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .undo-pen-btn {
@@ -321,10 +324,11 @@
 
         .undo-info {
             text-align: center;
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #666;
             margin-top: 10px;
-            line-height: 1.5;
+            line-height: 1.4;
+            grid-column: 1 / -1;
         }
 
         .canvas-container {
@@ -429,11 +433,6 @@
                         <button class="view-btn" onclick="changeView('back')">後ろ</button>
                         <button class="view-btn" onclick="changeView('left')">左</button>
                         <button class="view-btn" onclick="changeView('right')">右</button>
-                        <button class="view-btn" onclick="changeView('top')">上</button>
-                        <button class="view-btn" onclick="changeView('diagonal-left')">斜め左</button>
-                        <button class="view-btn" onclick="changeView('diagonal-right')">斜め右</button>
-                        <button class="view-btn" onclick="changeView('diagonal-left-back')">斜め左後ろ</button>
-                        <button class="view-btn" onclick="changeView('diagonal-right-back')">斜め右後ろ</button>
                     </div>
                 </div>
 
@@ -485,23 +484,23 @@
                     <h3>💾 アクション</h3>
                     <div class="action-buttons">
                         <button class="action-btn undo-pen-btn" id="undoPenBtn" onclick="undoPen()" disabled>
-                            ↶ ペンを戻す (<span id="penCount">0</span>/5)
+                            ↶ ペン (<span id="penCount">0</span>/5)
                         </button>
                         <button class="action-btn undo-eraser-btn" id="undoEraserBtn" onclick="undoEraser()" disabled>
-                            ↶ 消しゴムを戻す (<span id="eraserCount">0</span>/5)
+                            ↶ 消しゴム (<span id="eraserCount">0</span>/5)
                         </button>
                         <button class="action-btn undo-text-btn" id="undoTextBtn" onclick="undoText()" disabled>
-                            ↶ テキストを戻す (<span id="textCount">0</span>/5)
+                            ↶ テキスト (<span id="textCount">0</span>/5)
                         </button>
                         <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
                         <button class="action-btn undo-clear-btn" id="undoClearBtn" onclick="undoClear()" disabled>
-                            ↶ クリアを戻す (<span id="clearCount">0</span>/1)
+                            ↶ クリア (<span id="clearCount">0</span>/1)
                         </button>
                         <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
-                    </div>
-                    <div class="undo-info">
-                        各操作は最大回数まで戻せます<br>
-                        ペン:5回 / 消しゴム:5回 / テキスト:5回 / クリア:1回
+                        <div class="undo-info">
+                            各操作は最大回数まで戻せます<br>
+                            ペン:5回 / 消しゴム:5回 / テキスト:5回 / クリア:1回
+                        </div>
                     </div>
                 </div>
             </div>
@@ -529,22 +528,20 @@
         let textUndoStack = {};
         let clearHistory = {};
 
-        // テキスト移動用の変数
         let isDraggingText = false;
         let draggedTextIndex = null;
         let longPressTimer = null;
         let dragOffset = { x: 0, y: 0 };
         let isLongPressTriggered = false;
         let clickStartPos = null;
-        const LONG_PRESS_DURATION = 500; // 0.5秒
-        const MOVE_THRESHOLD = 10; // 10px以上動いたらドラッグとみなす
+        const LONG_PRESS_DURATION = 500;
 
         const MAX_PEN_UNDO = 5;
         const MAX_ERASER_UNDO = 5;
         const MAX_TEXT_UNDO = 5;
         const MAX_CLEAR_UNDO = 1;
 
-        const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
+        const views = ['front', 'back', 'left', 'right'];
 
         canvas.width = 800;
         canvas.height = 800;
@@ -618,21 +615,17 @@
             }
 
             img.onload = function() {
-                // キャンバスをクリア
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // 画像を描画
                 const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
                 const x = (canvas.width - img.width * scale) / 2;
                 const y = (canvas.height - img.height * scale) / 2;
                 
                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                 
-                // その上に描画要素を重ねる
                 redrawAllElements();
 
-                // ツールの設定を復元
                 if (currentTool === 'pen') {
                     ctx.strokeStyle = document.getElementById('colorPicker').value;
                 } else {
@@ -648,7 +641,6 @@
             img.onerror = function() {
                 console.error(`画像の読み込みに失敗: ${fileName}`);
                 
-                // キャンバスをクリア
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
@@ -657,14 +649,12 @@
                     loadingDiv.style.color = '#ff6b6b';
                 }
                 
-                // フォールバック: 円を描画
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(canvas.width / 2, canvas.height / 2, 200, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // 描画要素を重ねる
                 redrawAllElements();
                 
                 setTimeout(() => {
@@ -674,7 +664,7 @@
                 }, 2000);
             };
 
-            img.src = fileName;
+            img.src = `${fileName}?v=${Date.now()}`;
         }
 
         function redrawAllElements() {
@@ -697,7 +687,6 @@
                             ctx.fillText(item.text, item.x, item.y);
                             ctx.globalAlpha = 1.0;
                             
-                            // ドラッグ中のテキストにハイライト表示
                             if (isDraggingText && draggedTextIndex === index) {
                                 const textWidth = ctx.measureText(item.text).width;
                                 ctx.strokeStyle = '#2196f3';
@@ -814,7 +803,6 @@
                 const textIndex = findTextAtPosition(coords.x, coords.y);
                 
                 if (textIndex !== null) {
-                    // テキスト上でマウスダウン → 長押し判定開始
                     draggedTextIndex = textIndex;
                     isLongPressTriggered = false;
                     
@@ -850,14 +838,12 @@
         }
 
         function handleCanvasMouseUp(e) {
-            // 長押しタイマーをクリア
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
             }
             
             if (isDraggingText) {
-                // ドラッグ終了
                 isDraggingText = false;
                 draggedTextIndex = null;
                 canvas.classList.remove('move-cursor');
@@ -865,7 +851,6 @@
                 updateTextModeIndicator('追加');
                 drawHeadOutline();
             } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
-                // 短いクリック（長押しではない）→ 新規テキスト追加
                 const coords = getCanvasCoordinates(e.clientX, e.clientY);
                 const textIndex = findTextAtPosition(coords.x, coords.y);
                 if (textIndex === null) {
@@ -875,7 +860,6 @@
                 stopDrawing();
             }
             
-            // リセット
             isLongPressTriggered = false;
             draggedTextIndex = null;
             clickStartPos = null;
@@ -931,7 +915,6 @@
         function handleTouchEnd(e) {
             e.preventDefault();
             
-            // 長押しタイマーをクリア
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
