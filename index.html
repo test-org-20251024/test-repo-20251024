@@ -100,6 +100,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: l
 <div class="form-group"><label>年齢</label><input type="number" id="customerAge" placeholder="25"></div>
 <div class="form-group"><label>来店日 *</label><input type="date" id="visitDate"></div>
 </div>
+<div class="form-group"><label>毛質</label><input type="text" id="hairType" placeholder="例: 硬毛・軟毛・普通"></div>
+<div class="form-group"><label>備考</label><textarea id="customerNotes" rows="3" placeholder="お客様に関する特記事項（アレルギー、好みなど）"></textarea></div>
 <div class="form-group"><label>担当スタイリスト</label><input type="text" id="stylistName" placeholder="田中"></div>
 </div>
 <div class="section">
@@ -326,6 +328,8 @@ async function saveCustomer() {
         name,
         age: document.getElementById('customerAge').value,
         date,
+        hairType: document.getElementById('hairType').value,
+        customerNotes: document.getElementById('customerNotes').value,
         stylist: document.getElementById('stylistName').value,
         menus,
         price: document.getElementById('servicePrice').value,
@@ -497,6 +501,8 @@ function loadCustomerData(d) {
     document.getElementById('customerName').value = d.name || '';
     document.getElementById('customerAge').value = d.age || '';
     document.getElementById('visitDate').value = d.date || '';
+    document.getElementById('hairType').value = d.hairType || '';
+    document.getElementById('customerNotes').value = d.customerNotes || '';
     document.getElementById('stylistName').value = d.stylist || '';
     document.querySelectorAll('input[type="checkbox"]').forEach(c => {
         c.checked = d.menus && d.menus.includes(c.value);
