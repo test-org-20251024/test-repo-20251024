@@ -71,7 +71,7 @@
 
         .view-buttons {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -386,14 +386,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .view-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .tool-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .color-size-group {
                 flex-direction: column;
             }
@@ -433,6 +425,11 @@
                         <button class="view-btn" onclick="changeView('back')">後ろ</button>
                         <button class="view-btn" onclick="changeView('left')">左</button>
                         <button class="view-btn" onclick="changeView('right')">右</button>
+                        <button class="view-btn" onclick="changeView('top')">上</button>
+                        <button class="view-btn" onclick="changeView('diagonal-left')">斜め左</button>
+                        <button class="view-btn" onclick="changeView('diagonal-right')">斜め右</button>
+                        <button class="view-btn" onclick="changeView('diagonal-left-back')">斜め左後ろ</button>
+                        <button class="view-btn" onclick="changeView('diagonal-right-back')">斜め右後ろ</button>
                     </div>
                 </div>
 
@@ -541,7 +538,7 @@
         const MAX_TEXT_UNDO = 5;
         const MAX_CLEAR_UNDO = 1;
 
-        const views = ['front', 'back', 'left', 'right'];
+        const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
 
         canvas.width = 800;
         canvas.height = 800;
