@@ -2,1227 +2,661 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>頭部描画アプリ - Crine Free</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        connect-src 'self';
+    ">
+    <title>Crine - 頭部イラスト描画</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            overflow-x: hidden;
+            touch-action: pan-y;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
         }
 
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
-            padding: 30px;
+            padding: 15px;
             text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
-        h1 {
-            font-size: 2.5em;
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.95;
+        }
+
+        .notice-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #856404;
+        }
+
+        .notice-box h3 {
+            font-size: 14px;
+            font-weight: 700;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            color: #856404;
         }
 
-        .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
+        .notice-box ul {
+            margin-left: 20px;
+            margin-top: 8px;
         }
 
-        .main-content {
-            padding: 30px;
+        .notice-box li {
+            margin-bottom: 5px;
         }
 
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+        .notice-box strong {
+            color: #d39e00;
         }
 
-        .control-group {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .control-group h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-
-        .view-buttons {
+        .view-selector {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+            overflow-x: auto;
         }
 
         .view-btn {
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+            padding: 12px 8px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s;
-            font-weight: bold;
-        }
-
-        .view-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            white-space: nowrap;
         }
 
         .view-btn.active {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            border-color: #f093fb;
+            transform: scale(1.05);
         }
 
-        .tool-buttons {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .tool-btn {
-            padding: 12px;
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s;
-            font-weight: bold;
+            touch-action: none;
         }
 
-        .tool-btn:hover {
-            background: #667eea;
-            color: white;
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            overflow: hidden;
         }
 
-        .tool-btn.active {
-            background: #667eea;
-            color: white;
+        .head-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            z-index: 1;
         }
 
-        .color-size-group {
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 2;
+            touch-action: none;
+        }
+
+        .controls {
+            padding: 15px;
+            background: #f8f9fa;
             display: flex;
+            flex-direction: column;
             gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
             align-items: center;
-            margin-bottom: 15px;
+            flex-wrap: wrap;
         }
 
-        .color-picker-wrapper {
-            flex: 1;
+        .control-group label {
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 60px;
         }
 
-        .color-picker-wrapper label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        #colorPicker {
-            width: 100%;
+        .color-btn {
+            width: 40px;
             height: 40px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            border: 3px solid #ddd;
+            border-radius: 50%;
             cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .size-control {
+        .color-btn.active {
+            border-color: #f093fb;
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(240, 147, 251, 0.5);
+        }
+
+        input[type="range"] {
             flex: 1;
-        }
-
-        .size-control label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        #brushSize {
-            width: 100%;
-            height: 40px;
-            cursor: pointer;
-        }
-
-        .text-controls {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-        }
-
-        .text-input-group {
-            margin-bottom: 10px;
-        }
-
-        .text-input-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-
-        .text-input-group input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 0.9em;
-        }
-
-        .text-input-group input[type="range"] {
-            width: 100%;
-        }
-
-        .opacity-value, .font-size-value {
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .text-mode-toggle {
-            background: #22b8cf;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            text-align: center;
-            font-weight: bold;
+            min-width: 150px;
         }
 
         .action-buttons {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
+            padding: 15px;
         }
 
-        .action-btn {
-            padding: 10px 8px;
+        .btn {
+            padding: 15px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            font-size: 0.85em;
-            font-weight: bold;
-            transition: all 0.3s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            transition: all 0.3s ease;
         }
 
-        .undo-pen-btn {
-            background: #4dabf7;
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00b894, #00cec9);
             color: white;
         }
 
-        .undo-pen-btn:hover:not(:disabled) {
-            background: #339af0;
-            transform: translateY(-2px);
-        }
-
-        .undo-pen-btn:disabled {
-            background: #ced4da;
-            cursor: not-allowed;
-            transform: none;
-            opacity: 0.6;
-        }
-
-        .undo-eraser-btn {
-            background: #ffa94d;
+        .btn-danger {
+            background: #ff7675;
             color: white;
         }
 
-        .undo-eraser-btn:hover:not(:disabled) {
-            background: #ff922b;
-            transform: translateY(-2px);
-        }
-
-        .undo-eraser-btn:disabled {
-            background: #ced4da;
-            cursor: not-allowed;
-            transform: none;
-            opacity: 0.6;
-        }
-
-        .undo-text-btn {
-            background: #22b8cf;
+        .btn-secondary {
+            background: #6c757d;
             color: white;
         }
 
-        .undo-text-btn:hover:not(:disabled) {
-            background: #15aabf;
-            transform: translateY(-2px);
-        }
-
-        .undo-text-btn:disabled {
-            background: #ced4da;
-            cursor: not-allowed;
-            transform: none;
-            opacity: 0.6;
-        }
-
-        .clear-btn {
-            background: #ff6b6b;
-            color: white;
-        }
-
-        .clear-btn:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-        }
-
-        .undo-clear-btn {
-            background: #e67700;
-            color: white;
-        }
-
-        .undo-clear-btn:hover:not(:disabled) {
-            background: #cc6a00;
-            transform: translateY(-2px);
-        }
-
-        .undo-clear-btn:disabled {
-            background: #ced4da;
-            cursor: not-allowed;
-            transform: none;
-            opacity: 0.6;
-        }
-
-        .save-btn {
-            background: #51cf66;
-            color: white;
-        }
-
-        .save-btn:hover {
-            background: #40c057;
-            transform: translateY(-2px);
-        }
-
-        .undo-info {
-            text-align: center;
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 10px;
-            line-height: 1.4;
-            grid-column: 1 / -1;
-        }
-
-        .canvas-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 600px;
-            position: relative;
-        }
-
-        canvas {
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            cursor: crosshair;
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        canvas.text-cursor {
-            cursor: text;
-        }
-
-        canvas.move-cursor {
-            cursor: move;
-        }
-
-        .back-link {
-            display: inline-block;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-
-        .back-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        .btn-warning {
+            background: #fdcb6e;
+            color: #2d3436;
         }
 
         @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8em;
+            .view-selector {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+                padding: 10px;
             }
 
-            .controls {
+            .view-btn {
+                padding: 10px 6px;
+                font-size: 11px;
+            }
+
+            .action-buttons {
                 grid-template-columns: 1fr;
             }
 
-            .color-size-group {
-                flex-direction: column;
+            .notice-box {
+                font-size: 12px;
+                padding: 12px;
+                margin: 10px;
             }
-        }
-
-        .loading {
-            text-align: center;
-            color: #667eea;
-            font-size: 1.2em;
-            padding: 20px;
-        }
-
-        .text-hint {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            color: #1565c0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>✏️ 頭部描画アプリ</h1>
-            <p class="subtitle">お客様の頭部状態を視覚的に記録</p>
-        </header>
+        <div class="header">
+            <h1>🎨 頭部イラスト描画アプリ</h1>
+            <p id="customerInfo">顧客情報を読み込み中...</p>
+        </div>
 
-        <div class="main-content">
-            <div class="controls">
-                <div class="control-group">
-                    <h3>👁️ 視点選択</h3>
-                    <div class="view-buttons">
-                        <button class="view-btn active" onclick="changeView('front')">正面</button>
-                        <button class="view-btn" onclick="changeView('back')">後ろ</button>
-                        <button class="view-btn" onclick="changeView('left')">左</button>
-                        <button class="view-btn" onclick="changeView('right')">右</button>
-                        <button class="view-btn" onclick="changeView('top')">上</button>
-                        <button class="view-btn" onclick="changeView('diagonal-left')">斜め左</button>
-                        <button class="view-btn" onclick="changeView('diagonal-right')">斜め右</button>
-                        <button class="view-btn" onclick="changeView('diagonal-left-back')">斜め左後ろ</button>
-                        <button class="view-btn" onclick="changeView('diagonal-right-back')">斜め右後ろ</button>
-                    </div>
-                </div>
+        <div class="notice-box">
+            <h3>⚠️ ご使用前の注意事項</h3>
+            <ul>
+                <li><strong>保存を忘れずに：</strong>描画後は必ず「💾 保存」ボタンを押してください</li>
+                <li><strong>ビュー切り替え時：</strong>別の角度に切り替えると自動保存されます</li>
+                <li><strong>iPadでの表示問題：</strong>イラストが表示されない場合は、ブラウザを再読み込み（更新ボタン）してください</li>
+                <li><strong>描画のコツ：</strong>指またはペンで直接画面をタッチして描画できます</li>
+                <li><strong>取り消し機能：</strong>間違えた場合は「↶ 戻る」ボタンで1つ前に戻れます</li>
+            </ul>
+        </div>
 
-                <div class="control-group">
-                    <h3>🎨 描画ツール</h3>
-                    <div class="tool-buttons">
-                        <button class="tool-btn active" onclick="setTool('pen')">ペン</button>
-                        <button class="tool-btn" onclick="setTool('eraser')">消しゴム</button>
-                        <button class="tool-btn" onclick="setTool('text')">テキスト</button>
-                    </div>
-                    <div class="color-size-group" id="penEraserControls">
-                        <div class="color-picker-wrapper">
-                            <label for="colorPicker">色:</label>
-                            <input type="color" id="colorPicker" value="#000000">
-                        </div>
-                        <div class="size-control">
-                            <label for="brushSize">太さ: <span id="sizeValue">3</span>px</label>
-                            <input type="range" id="brushSize" min="1" max="20" value="3">
-                        </div>
-                    </div>
+        <div class="view-selector" id="viewSelector"></div>
 
-                    <div class="text-controls" id="textControls" style="display: none;">
-                        <div class="text-mode-toggle" id="textModeIndicator">
-                            モード: テキスト追加
-                        </div>
-                        <div class="text-input-group">
-                            <label for="textInput">テキスト:</label>
-                            <input type="text" id="textInput" placeholder="入力してキャンバスをクリック">
-                        </div>
-                        <div class="text-input-group">
-                            <label for="textColor">色:</label>
-                            <input type="color" id="textColor" value="#000000" style="width: 100%; height: 40px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer;">
-                        </div>
-                        <div class="text-input-group">
-                            <label for="textSize">サイズ: <span class="font-size-value" id="textSizeValue">24</span>px</label>
-                            <input type="range" id="textSize" min="12" max="72" value="24">
-                        </div>
-                        <div class="text-input-group">
-                            <label for="textOpacity">透過度: <span class="opacity-value" id="textOpacityValue">50</span>%</label>
-                            <input type="range" id="textOpacity" min="10" max="100" value="50">
-                        </div>
-                        <div class="text-hint">
-                            💡 テキストを長押し（0.5秒）で移動モードに切替
-                        </div>
-                    </div>
-                </div>
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <img id="headSvg" class="head-svg" alt="頭部イラスト" style="display:none;">
+                <canvas id="drawingCanvas"></canvas>
+            </div>
+        </div>
 
-                <div class="control-group">
-                    <h3>💾 アクション</h3>
-                    <div class="action-buttons">
-                        <button class="action-btn undo-pen-btn" id="undoPenBtn" onclick="undoPen()" disabled>
-                            ↶ ペン (<span id="penCount">0</span>/5)
-                        </button>
-                        <button class="action-btn undo-eraser-btn" id="undoEraserBtn" onclick="undoEraser()" disabled>
-                            ↶ 消しゴム (<span id="eraserCount">0</span>/5)
-                        </button>
-                        <button class="action-btn undo-text-btn" id="undoTextBtn" onclick="undoText()" disabled>
-                            ↶ テキスト (<span id="textCount">0</span>/5)
-                        </button>
-                        <button class="action-btn clear-btn" onclick="clearCanvas()">クリア</button>
-                        <button class="action-btn undo-clear-btn" id="undoClearBtn" onclick="undoClear()" disabled>
-                            ↶ クリア (<span id="clearCount">0</span>/1)
-                        </button>
-                        <button class="action-btn save-btn" onclick="saveDrawing()">保存</button>
-                        <div class="undo-info">
-                            各操作は最大回数まで戻せます<br>
-                            ペン:5回 / 消しゴム:5回 / テキスト:5回 / クリア:1回
-                        </div>
-                    </div>
+        <div class="controls">
+            <div class="control-group">
+                <label>色:</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <div class="color-btn active" data-color="#000000" style="background:#000000;" title="黒"></div>
+                    <div class="color-btn" data-color="#FF0000" style="background:#FF0000;" title="赤"></div>
+                    <div class="color-btn" data-color="#0000FF" style="background:#0000FF;" title="青"></div>
+                    <div class="color-btn" data-color="#00FF00" style="background:#00FF00;" title="緑"></div>
+                    <div class="color-btn" data-color="#FFFF00" style="background:#FFFF00;" title="黄"></div>
+                    <div class="color-btn" data-color="#FF00FF" style="background:#FF00FF;" title="紫"></div>
+                    <div class="color-btn" data-color="#FFA500" style="background:#FFA500;" title="オレンジ"></div>
+                    <div class="color-btn" data-color="#8B4513" style="background:#8B4513;" title="茶"></div>
                 </div>
             </div>
 
-            <div class="canvas-container" id="canvasContainer">
-                <div class="loading">読み込み中...</div>
+            <div class="control-group">
+                <label>太さ:</label>
+                <input type="range" id="brushSize" min="1" max="20" value="3">
+                <span id="brushSizeValue">3px</span>
             </div>
+        </div>
 
-            <div style="text-align: center; margin-top: 30px; padding: 20px;">
-                <a href="index.html" class="back-link">← カルテに戻る</a>
-            </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="saveBtn">💾 保存</button>
+            <button class="btn btn-danger" id="clearBtn">🗑️ クリア</button>
+            <button class="btn btn-warning" id="undoBtn">↶ 戻る</button>
+            <button class="btn btn-secondary" id="backBtn">← メインへ</button>
         </div>
     </div>
 
     <script>
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        // グローバル変数
+        let canvas, ctx;
         let isDrawing = false;
-        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let currentBrushSize = 3;
         let currentView = 'front';
-        let drawings = {};
+        let customerId = null;
+        let drawingHistory = {};
+        let currentStrokes = [];
 
-        let penUndoStack = {};
-        let eraserUndoStack = {};
-        let textUndoStack = {};
-        let clearHistory = {};
+        const views = [
+            { id: 'front', label: '正面', file: 'head-front.svg' },
+            { id: 'back', label: '後ろ', file: 'head-back.svg' },
+            { id: 'left', label: '左', file: 'head-left.svg' },
+            { id: 'right', label: '右', file: 'head-right.svg' },
+            { id: 'top', label: '上', file: 'head-top.svg' },
+            { id: 'diagonal-left', label: '斜め左前', file: 'head-diagonal-left.svg' },
+            { id: 'diagonal-right', label: '斜め右前', file: 'head-diagonal-right.svg' },
+            { id: 'diagonal-left-back', label: '斜め左後', file: 'head-diagonal-left-back.svg' },
+            { id: 'diagonal-right-back', label: '斜め右後', file: 'head-diagonal-right-back.svg' }
+        ];
 
-        let isDraggingText = false;
-        let draggedTextIndex = null;
-        let longPressTimer = null;
-        let dragOffset = { x: 0, y: 0 };
-        let isLongPressTriggered = false;
-        let clickStartPos = null;
-        const LONG_PRESS_DURATION = 500;
-
-        const MAX_PEN_UNDO = 5;
-        const MAX_ERASER_UNDO = 5;
-        const MAX_TEXT_UNDO = 5;
-        const MAX_CLEAR_UNDO = 1;
-
-        const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
-
-        canvas.width = 800;
-        canvas.height = 800;
-        canvas.style.maxWidth = '100%';
-        canvas.style.height = 'auto';
-
-        function init() {
-            const container = document.getElementById('canvasContainer');
-            container.innerHTML = '';
-            container.appendChild(canvas);
+        // 初期化
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!checkAuth()) return;
             
+            const urlParams = new URLSearchParams(window.location.search);
+            customerId = urlParams.get('id');
+            
+            if (!customerId) {
+                alert('顧客IDが指定されていません');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            loadCustomerInfo();
+            initCanvas();
+            createViewButtons();
+            loadDrawingData();
+            setupEventListeners();
+            loadView('front');
+        });
+
+        function checkAuth() {
+            const authInfo = localStorage.getItem('salonLicense');
+            if (!authInfo) {
+                alert('メインアプリから起動してください');
+                window.location.href = 'index.html';
+                return false;
+            }
+            try {
+                const auth = JSON.parse(authInfo);
+                if (new Date(auth.validUntil) < new Date()) {
+                    alert('ライセンスの有効期限が切れています');
+                    localStorage.removeItem('salonLicense');
+                    window.location.href = 'license.html';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.error('認証エラー:', e);
+                return false;
+            }
+        }
+
+        function loadCustomerInfo() {
+            const customers = JSON.parse(localStorage.getItem('salonCustomersFree') || '[]');
+            const customer = customers.find(c => c.id === customerId);
+            
+            if (customer) {
+                document.getElementById('customerInfo').textContent = 
+                    `${customer.name}様 (ID: ${customer.id})`;
+            }
+        }
+
+        function initCanvas() {
+            canvas = document.getElementById('drawingCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // キャンバスサイズ設定（高解像度対応）
+            const container = canvas.parentElement;
+            const size = container.offsetWidth;
+            
+            canvas.width = size * 2;
+            canvas.height = size * 2;
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            
+            ctx.scale(2, 2);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        function createViewButtons() {
+            const selector = document.getElementById('viewSelector');
             views.forEach(view => {
-                drawings[view] = [];
-                penUndoStack[view] = [];
-                eraserUndoStack[view] = [];
-                textUndoStack[view] = [];
-                clearHistory[view] = [];
+                const btn = document.createElement('button');
+                btn.className = 'view-btn';
+                btn.textContent = view.label;
+                btn.dataset.view = view.id;
+                if (view.id === 'front') btn.classList.add('active');
+                btn.onclick = () => switchView(view.id);
+                selector.appendChild(btn);
+            });
+        }
+
+        function switchView(viewId) {
+            saveCurrentDrawing();
+            currentView = viewId;
+            
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewId);
+            });
+            
+            loadView(viewId);
+        }
+
+        function loadView(viewId) {
+            const view = views.find(v => v.id === viewId);
+            if (!view) return;
+            
+            const img = document.getElementById('headSvg');
+            const svgPath = `images/${view.file}`;
+            
+            // キャッシュバスター追加（iPad対策）
+            const cacheBuster = '?v=' + Date.now();
+            
+            img.onload = function() {
+                console.log('SVG読み込み成功:', view.file);
+                img.style.display = 'block';
+                loadViewDrawing(viewId);
+            };
+            
+            img.onerror = function() {
+                console.error('SVG読み込み失敗:', view.file);
+                alert(`画像の読み込みに失敗しました: ${view.file}\n\nブラウザを再読み込みしてください。`);
+                img.style.display = 'none';
+            };
+            
+            // 明示的なサイズ指定（iPad Safari対策）
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.setAttribute('width', '100%');
+            img.setAttribute('height', '100%');
+            
+            img.src = svgPath + cacheBuster;
+        }
+
+        function saveCurrentDrawing() {
+            if (currentStrokes.length > 0) {
+                drawingHistory[currentView] = [...currentStrokes];
+            }
+        }
+
+        function loadViewDrawing(viewId) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentStrokes = drawingHistory[viewId] ? [...drawingHistory[viewId]] : [];
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentStrokes.forEach(stroke => {
+                drawStroke(stroke);
+            });
+        }
+
+        function drawStroke(stroke) {
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = stroke.size;
+            ctx.beginPath();
+            stroke.points.forEach((point, index) => {
+                if (index === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.stroke();
+        }
+
+        function setupEventListeners() {
+            // カラーボタン
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentColor = this.dataset.color;
+                });
             });
 
-            drawHeadOutline();
+            // ブラシサイズ
+            const brushSize = document.getElementById('brushSize');
+            brushSize.addEventListener('input', function() {
+                currentBrushSize = parseInt(this.value);
+                document.getElementById('brushSizeValue').textContent = currentBrushSize + 'px';
+            });
 
-            canvas.addEventListener('mousedown', handleCanvasMouseDown);
-            canvas.addEventListener('mousemove', handleCanvasMouseMove);
-            canvas.addEventListener('mouseup', handleCanvasMouseUp);
-            canvas.addEventListener('mouseout', handleCanvasMouseUp);
+            // 描画イベント（タッチ対応）
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
 
             canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
             canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            canvas.addEventListener('touchend', stopDrawing);
 
-            document.getElementById('colorPicker').addEventListener('change', (e) => {
-                if (currentTool === 'pen') {
-                    ctx.strokeStyle = e.target.value;
+            // ボタン
+            document.getElementById('saveBtn').addEventListener('click', saveDrawing);
+            document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('backBtn').addEventListener('click', () => {
+                if (confirm('メインカルテに戻りますか？未保存の描画がある場合は保存してください。')) {
+                    window.location.href = 'index.html';
                 }
             });
-
-            document.getElementById('brushSize').addEventListener('input', (e) => {
-                ctx.lineWidth = e.target.value;
-                document.getElementById('sizeValue').textContent = e.target.value;
-            });
-
-            document.getElementById('textSize').addEventListener('input', (e) => {
-                document.getElementById('textSizeValue').textContent = e.target.value;
-            });
-
-            document.getElementById('textOpacity').addEventListener('input', (e) => {
-                document.getElementById('textOpacityValue').textContent = e.target.value;
-            });
-
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            updateUndoButtons();
         }
 
-        function drawHeadOutline() {
-            const container = document.getElementById('canvasContainer');
-            const loadingDiv = container.querySelector('.loading');
-            
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const img = new Image();
-            const fileName = `head-${currentView}.svg`;
-            
-            if (loadingDiv) {
-                loadingDiv.textContent = `${currentView}を読み込み中...`;
-                loadingDiv.style.display = 'block';
-            }
-
-            img.onload = function() {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8;
-                const x = (canvas.width - img.width * scale) / 2;
-                const y = (canvas.height - img.height * scale) / 2;
-                
-                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                
-                redrawAllElements();
-
-                if (currentTool === 'pen') {
-                    ctx.strokeStyle = document.getElementById('colorPicker').value;
-                } else {
-                    ctx.strokeStyle = 'white';
-                }
-                ctx.lineWidth = document.getElementById('brushSize').value;
-
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            };
-
-            img.onerror = function() {
-                console.error(`画像の読み込みに失敗: ${fileName}`);
-                
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                if (loadingDiv) {
-                    loadingDiv.textContent = `エラー: ${fileName}が見つかりません`;
-                    loadingDiv.style.color = '#ff6b6b';
-                }
-                
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(canvas.width / 2, canvas.height / 2, 200, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                redrawAllElements();
-                
-                setTimeout(() => {
-                    if (loadingDiv) {
-                        loadingDiv.style.display = 'none';
-                    }
-                }, 2000);
-            };
-
-            img.src = `${fileName}?v=${Date.now()}`;
-        }
-
-        function redrawAllElements() {
-            if (drawings[currentView]) {
-                drawings[currentView].forEach((item, index) => {
-                    if (!item.deleted) {
-                        if (item.type === 'line') {
-                            ctx.strokeStyle = item.color;
-                            ctx.lineWidth = item.width;
-                            ctx.beginPath();
-                            ctx.moveTo(item.points[0].x, item.points[0].y);
-                            for (let i = 1; i < item.points.length; i++) {
-                                ctx.lineTo(item.points[i].x, item.points[i].y);
-                            }
-                            ctx.stroke();
-                        } else if (item.type === 'text') {
-                            ctx.font = `${item.fontSize}px Arial`;
-                            ctx.fillStyle = item.color;
-                            ctx.globalAlpha = item.opacity;
-                            ctx.fillText(item.text, item.x, item.y);
-                            ctx.globalAlpha = 1.0;
-                            
-                            if (isDraggingText && draggedTextIndex === index) {
-                                const textWidth = ctx.measureText(item.text).width;
-                                ctx.strokeStyle = '#2196f3';
-                                ctx.lineWidth = 2;
-                                ctx.strokeRect(
-                                    item.x - 5, 
-                                    item.y - item.fontSize - 5, 
-                                    textWidth + 10, 
-                                    item.fontSize + 10
-                                );
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        function changeView(view) {
-            currentView = view;
-
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            drawHeadOutline();
-            updateUndoButtons();
-        }
-
-        function setTool(tool) {
-            currentTool = tool;
-            isDraggingText = false;
-            draggedTextIndex = null;
-            isLongPressTriggered = false;
-            
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            const penEraserControls = document.getElementById('penEraserControls');
-            const textControls = document.getElementById('textControls');
-
-            if (tool === 'text') {
-                penEraserControls.style.display = 'none';
-                textControls.style.display = 'block';
-                canvas.classList.add('text-cursor');
-                canvas.style.cursor = 'text';
-                updateTextModeIndicator('追加');
-            } else {
-                penEraserControls.style.display = 'flex';
-                textControls.style.display = 'none';
-                canvas.classList.remove('text-cursor');
-                canvas.classList.remove('move-cursor');
-                
-                if (tool === 'eraser') {
-                    ctx.strokeStyle = 'white';
-                    canvas.style.cursor = 'grab';
-                } else {
-                    ctx.strokeStyle = document.getElementById('colorPicker').value;
-                    canvas.style.cursor = 'crosshair';
-                }
-            }
-        }
-
-        function updateTextModeIndicator(mode) {
-            const indicator = document.getElementById('textModeIndicator');
-            if (mode === '移動') {
-                indicator.textContent = 'モード: テキスト移動中';
-                indicator.style.background = '#ff9800';
-            } else {
-                indicator.textContent = 'モード: テキスト追加';
-                indicator.style.background = '#22b8cf';
-            }
-        }
-
-        function getCanvasCoordinates(clientX, clientY) {
+        function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
             return {
-                x: (clientX - rect.left) * (canvas.width / rect.width),
-                y: (clientY - rect.top) * (canvas.height / rect.height)
+                x: (e.clientX - rect.left) * scaleX / 2,
+                y: (e.clientY - rect.top) * scaleY / 2
             };
-        }
-
-        function findTextAtPosition(x, y) {
-            if (!drawings[currentView]) return null;
-            
-            for (let i = drawings[currentView].length - 1; i >= 0; i--) {
-                const item = drawings[currentView][i];
-                if (item.type === 'text' && !item.deleted) {
-                    ctx.font = `${item.fontSize}px Arial`;
-                    const textWidth = ctx.measureText(item.text).width;
-                    const textHeight = item.fontSize;
-                    
-                    if (x >= item.x - 5 && x <= item.x + textWidth + 5 &&
-                        y >= item.y - textHeight - 5 && y <= item.y + 5) {
-                        return i;
-                    }
-                }
-            }
-            return null;
-        }
-
-        function handleCanvasMouseDown(e) {
-            const coords = getCanvasCoordinates(e.clientX, e.clientY);
-            clickStartPos = coords;
-            
-            if (currentTool === 'text') {
-                const textIndex = findTextAtPosition(coords.x, coords.y);
-                
-                if (textIndex !== null) {
-                    draggedTextIndex = textIndex;
-                    isLongPressTriggered = false;
-                    
-                    longPressTimer = setTimeout(() => {
-                        isLongPressTriggered = true;
-                        isDraggingText = true;
-                        const item = drawings[currentView][textIndex];
-                        dragOffset.x = coords.x - item.x;
-                        dragOffset.y = coords.y - item.y;
-                        canvas.classList.remove('text-cursor');
-                        canvas.classList.add('move-cursor');
-                        updateTextModeIndicator('移動');
-                        drawHeadOutline();
-                    }, LONG_PRESS_DURATION);
-                }
-            } else {
-                startDrawing(e.clientX, e.clientY);
-            }
-        }
-
-        function handleCanvasMouseMove(e) {
-            if (isDraggingText && draggedTextIndex !== null) {
-                const coords = getCanvasCoordinates(e.clientX, e.clientY);
-                const item = drawings[currentView][draggedTextIndex];
-                
-                item.x = coords.x - dragOffset.x;
-                item.y = coords.y - dragOffset.y;
-                
-                drawHeadOutline();
-            } else if (currentTool !== 'text') {
-                draw(e.clientX, e.clientY);
-            }
-        }
-
-        function handleCanvasMouseUp(e) {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            
-            if (isDraggingText) {
-                isDraggingText = false;
-                draggedTextIndex = null;
-                canvas.classList.remove('move-cursor');
-                canvas.classList.add('text-cursor');
-                updateTextModeIndicator('追加');
-                drawHeadOutline();
-            } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
-                const coords = getCanvasCoordinates(e.clientX, e.clientY);
-                const textIndex = findTextAtPosition(coords.x, coords.y);
-                if (textIndex === null) {
-                    addText(coords.x, coords.y);
-                }
-            } else if (currentTool !== 'text') {
-                stopDrawing();
-            }
-            
-            isLongPressTriggered = false;
-            draggedTextIndex = null;
-            clickStartPos = null;
         }
 
         function handleTouchStart(e) {
             e.preventDefault();
             const touch = e.touches[0];
-            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-            clickStartPos = coords;
-            
-            if (currentTool === 'text') {
-                const textIndex = findTextAtPosition(coords.x, coords.y);
-                
-                if (textIndex !== null) {
-                    draggedTextIndex = textIndex;
-                    isLongPressTriggered = false;
-                    
-                    longPressTimer = setTimeout(() => {
-                        isLongPressTriggered = true;
-                        isDraggingText = true;
-                        const item = drawings[currentView][textIndex];
-                        dragOffset.x = coords.x - item.x;
-                        dragOffset.y = coords.y - item.y;
-                        canvas.classList.remove('text-cursor');
-                        canvas.classList.add('move-cursor');
-                        updateTextModeIndicator('移動');
-                        drawHeadOutline();
-                    }, LONG_PRESS_DURATION);
-                }
-            } else {
-                startDrawing(touch.clientX, touch.clientY);
-            }
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
         }
 
         function handleTouchMove(e) {
             e.preventDefault();
             const touch = e.touches[0];
-            
-            if (isDraggingText && draggedTextIndex !== null) {
-                const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-                const item = drawings[currentView][draggedTextIndex];
-                
-                item.x = coords.x - dragOffset.x;
-                item.y = coords.y - dragOffset.y;
-                
-                drawHeadOutline();
-            } else if (currentTool !== 'text') {
-                draw(touch.clientX, touch.clientY);
-            }
-        }
-
-        function handleTouchEnd(e) {
-            e.preventDefault();
-            
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            
-            if (isDraggingText) {
-                isDraggingText = false;
-                draggedTextIndex = null;
-                canvas.classList.remove('move-cursor');
-                canvas.classList.add('text-cursor');
-                updateTextModeIndicator('追加');
-                drawHeadOutline();
-            } else if (currentTool === 'text' && !isLongPressTriggered && clickStartPos) {
-                const textIndex = findTextAtPosition(clickStartPos.x, clickStartPos.y);
-                if (textIndex === null) {
-                    addText(clickStartPos.x, clickStartPos.y);
-                }
-            } else if (currentTool !== 'text') {
-                stopDrawing();
-            }
-            
-            isLongPressTriggered = false;
-            draggedTextIndex = null;
-            clickStartPos = null;
-        }
-
-        function addText(x, y) {
-            const textInput = document.getElementById('textInput');
-            const text = textInput.value.trim();
-            
-            if (!text) {
-                alert('テキストを入力してください');
-                return;
-            }
-
-            const fontSize = parseInt(document.getElementById('textSize').value);
-            const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
-            const color = document.getElementById('textColor').value;
-
-            if (!drawings[currentView]) {
-                drawings[currentView] = [];
-            }
-
-            const textIndex = drawings[currentView].length;
-            
-            drawings[currentView].push({
-                type: 'text',
-                text: text,
-                x: x,
-                y: y,
-                fontSize: fontSize,
-                opacity: opacity,
-                color: color,
-                tool: 'text'
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
             });
-
-            if (!textUndoStack[currentView]) {
-                textUndoStack[currentView] = [];
-            }
-            textUndoStack[currentView].push(textIndex);
-
-            if (textUndoStack[currentView].length > MAX_TEXT_UNDO) {
-                textUndoStack[currentView].shift();
-            }
-
-            drawHeadOutline();
-            updateUndoButtons();
-
-            textInput.value = '';
+            canvas.dispatchEvent(mouseEvent);
         }
 
-        function startDrawing(clientX, clientY) {
-            if (currentTool === 'text') return;
+        let currentStroke = null;
 
+        function startDrawing(e) {
             isDrawing = true;
-            const coords = getCanvasCoordinates(clientX, clientY);
-
-            if (!drawings[currentView]) {
-                drawings[currentView] = [];
-            }
-
-            drawings[currentView].push({
-                type: 'line',
-                color: ctx.strokeStyle,
-                width: ctx.lineWidth,
-                points: [coords],
-                tool: currentTool
-            });
-
-            ctx.beginPath();
-            ctx.moveTo(coords.x, coords.y);
+            const pos = getCoordinates(e);
+            currentStroke = {
+                color: currentColor,
+                size: currentBrushSize,
+                points: [pos]
+            };
         }
 
-        function draw(clientX, clientY) {
-            if (!isDrawing || currentTool === 'text') return;
-
-            const coords = getCanvasCoordinates(clientX, clientY);
-            const currentLine = drawings[currentView][drawings[currentView].length - 1];
-            currentLine.points.push(coords);
-
-            ctx.lineTo(coords.x, coords.y);
+        function draw(e) {
+            if (!isDrawing || !currentStroke) return;
+            
+            const pos = getCoordinates(e);
+            currentStroke.points.push(pos);
+            
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentBrushSize;
+            ctx.beginPath();
+            const lastPoint = currentStroke.points[currentStroke.points.length - 2];
+            ctx.moveTo(lastPoint.x, lastPoint.y);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
         }
 
         function stopDrawing() {
-            if (isDrawing) {
-                isDrawing = false;
-                
-                const lastIndex = drawings[currentView].length - 1;
-                const lastItem = drawings[currentView][lastIndex];
-                
-                if (lastItem.type === 'line') {
-                    if (lastItem.tool === 'pen') {
-                        if (!penUndoStack[currentView]) {
-                            penUndoStack[currentView] = [];
-                        }
-                        penUndoStack[currentView].push(lastIndex);
-                        
-                        if (penUndoStack[currentView].length > MAX_PEN_UNDO) {
-                            penUndoStack[currentView].shift();
-                        }
-                    } else if (lastItem.tool === 'eraser') {
-                        if (!eraserUndoStack[currentView]) {
-                            eraserUndoStack[currentView] = [];
-                        }
-                        eraserUndoStack[currentView].push(lastIndex);
-                        
-                        if (eraserUndoStack[currentView].length > MAX_ERASER_UNDO) {
-                            eraserUndoStack[currentView].shift();
-                        }
-                    }
-                }
-                
-                updateUndoButtons();
+            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
+                currentStrokes.push(currentStroke);
             }
-        }
-
-        function undoPen() {
-            if (!penUndoStack[currentView] || penUndoStack[currentView].length === 0) {
-                alert('これ以上ペン操作を戻せません（最大5回まで）');
-                return;
-            }
-
-            const indexToRemove = penUndoStack[currentView].pop();
-            
-            if (drawings[currentView][indexToRemove]) {
-                drawings[currentView][indexToRemove].deleted = true;
-            }
-
-            drawHeadOutline();
-            updateUndoButtons();
-        }
-
-        function undoEraser() {
-            if (!eraserUndoStack[currentView] || eraserUndoStack[currentView].length === 0) {
-                alert('これ以上消しゴム操作を戻せません（最大5回まで）');
-                return;
-            }
-
-            const indexToRemove = eraserUndoStack[currentView].pop();
-            
-            if (drawings[currentView][indexToRemove]) {
-                drawings[currentView][indexToRemove].deleted = true;
-            }
-
-            drawHeadOutline();
-            updateUndoButtons();
-        }
-
-        function undoText() {
-            if (!textUndoStack[currentView] || textUndoStack[currentView].length === 0) {
-                alert('これ以上テキスト操作を戻せません（最大5回まで）');
-                return;
-            }
-
-            const indexToRemove = textUndoStack[currentView].pop();
-            
-            if (drawings[currentView][indexToRemove]) {
-                drawings[currentView][indexToRemove].deleted = true;
-            }
-
-            drawHeadOutline();
-            updateUndoButtons();
+            isDrawing = false;
+            currentStroke = null;
         }
 
         function clearCanvas() {
-            if (confirm('現在の視点の描画をクリアしますか？')) {
-                if (!clearHistory[currentView]) {
-                    clearHistory[currentView] = [];
-                }
-                
-                const beforeClear = {
-                    drawings: JSON.parse(JSON.stringify(drawings[currentView])),
-                    penStack: JSON.parse(JSON.stringify(penUndoStack[currentView])),
-                    eraserStack: JSON.parse(JSON.stringify(eraserUndoStack[currentView])),
-                    textStack: JSON.parse(JSON.stringify(textUndoStack[currentView]))
-                };
-                
-                clearHistory[currentView].push(beforeClear);
-                
-                if (clearHistory[currentView].length > MAX_CLEAR_UNDO) {
-                    clearHistory[currentView].shift();
-                }
-                
-                drawings[currentView] = [];
-                penUndoStack[currentView] = [];
-                eraserUndoStack[currentView] = [];
-                textUndoStack[currentView] = [];
-                
-                drawHeadOutline();
-                updateUndoButtons();
-            }
+            if (!confirm('現在のビューの描画をクリアしますか？')) return;
+            
+            currentStrokes = [];
+            drawingHistory[currentView] = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        function undoClear() {
-            if (!clearHistory[currentView] || clearHistory[currentView].length === 0) {
-                alert('これ以上クリアを戻せません（最大1回まで）');
+        function undo() {
+            if (currentStrokes.length === 0) {
+                alert('戻る操作がありません');
                 return;
             }
-
-            const lastState = clearHistory[currentView].pop();
-            drawings[currentView] = lastState.drawings;
-            penUndoStack[currentView] = lastState.penStack;
-            eraserUndoStack[currentView] = lastState.eraserStack;
-            textUndoStack[currentView] = lastState.textStack;
-
-            drawHeadOutline();
-            updateUndoButtons();
+            
+            currentStrokes.pop();
+            drawingHistory[currentView] = [...currentStrokes];
+            redrawCanvas();
         }
 
-        function updateUndoButtons() {
-            const undoPenBtn = document.getElementById('undoPenBtn');
-            const undoEraserBtn = document.getElementById('undoEraserBtn');
-            const undoTextBtn = document.getElementById('undoTextBtn');
-            const undoClearBtn = document.getElementById('undoClearBtn');
-            
-            const penCount = document.getElementById('penCount');
-            const eraserCount = document.getElementById('eraserCount');
-            const textCount = document.getElementById('textCount');
-            const clearCount = document.getElementById('clearCount');
-            
-            const penLength = penUndoStack[currentView] ? penUndoStack[currentView].length : 0;
-            const eraserLength = eraserUndoStack[currentView] ? eraserUndoStack[currentView].length : 0;
-            const textLength = textUndoStack[currentView] ? textUndoStack[currentView].length : 0;
-            const clearLength = clearHistory[currentView] ? clearHistory[currentView].length : 0;
-
-            penCount.textContent = penLength;
-            eraserCount.textContent = eraserLength;
-            textCount.textContent = textLength;
-            clearCount.textContent = clearLength;
-
-            undoPenBtn.disabled = penLength === 0;
-            undoEraserBtn.disabled = eraserLength === 0;
-            undoTextBtn.disabled = textLength === 0;
-            undoClearBtn.disabled = clearLength === 0;
+        function loadDrawingData() {
+            const data = localStorage.getItem('drawing_' + customerId);
+            if (data) {
+                try {
+                    const saved = JSON.parse(data);
+                    if (saved.drawings) {
+                        Object.keys(saved.drawings).forEach(viewId => {
+                            if (saved.drawings[viewId] && saved.drawings[viewId].length > 0) {
+                                drawingHistory[viewId] = saved.drawings[viewId][saved.drawings[viewId].length - 1];
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('描画データ読み込みエラー:', e);
+                }
+            }
         }
 
         function saveDrawing() {
-            try {
-                localStorage.setItem('headDrawings', JSON.stringify(drawings));
-                localStorage.setItem('headPenUndoStack', JSON.stringify(penUndoStack));
-                localStorage.setItem('headEraserUndoStack', JSON.stringify(eraserUndoStack));
-                localStorage.setItem('headTextUndoStack', JSON.stringify(textUndoStack));
-                localStorage.setItem('headClearHistory', JSON.stringify(clearHistory));
-                
-                const dataURL = canvas.toDataURL('image/png');
-                localStorage.setItem(`headDrawing_${currentView}`, dataURL);
-                
-                alert('描画を保存しました！');
-            } catch (e) {
-                console.error('保存エラー:', e);
-                alert('保存に失敗しました。ストレージ容量を確認してください。');
-            }
-        }
-
-        window.addEventListener('load', () => {
-            init();
+            saveCurrentDrawing();
             
-            try {
-                const savedDrawings = localStorage.getItem('headDrawings');
-                const savedPenStack = localStorage.getItem('headPenUndoStack');
-                const savedEraserStack = localStorage.getItem('headEraserUndoStack');
-                const savedTextStack = localStorage.getItem('headTextUndoStack');
-                const savedClearHistory = localStorage.getItem('headClearHistory');
-                
-                if (savedDrawings) {
-                    drawings = JSON.parse(savedDrawings);
+            const allDrawings = {};
+            Object.keys(drawingHistory).forEach(viewId => {
+                if (drawingHistory[viewId] && drawingHistory[viewId].length > 0) {
+                    allDrawings[viewId] = [drawingHistory[viewId]];
                 }
-                
-                if (savedPenStack) {
-                    penUndoStack = JSON.parse(savedPenStack);
-                }
-                
-                if (savedEraserStack) {
-                    eraserUndoStack = JSON.parse(savedEraserStack);
-                }
-                
-                if (savedTextStack) {
-                    textUndoStack = JSON.parse(savedTextStack);
-                }
-                
-                if (savedClearHistory) {
-                    clearHistory = JSON.parse(savedClearHistory);
-                }
-                
-                drawHeadOutline();
-                updateUndoButtons();
-            } catch (e) {
-                console.error('読み込みエラー:', e);
-            }
-        });
+            });
+            
+            const data = {
+                customerId: customerId,
+                drawings: allDrawings,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('drawing_' + customerId, JSON.stringify(data));
+            alert('✅ 描画データを保存しました！\n\nメインカルテに戻って「保存」すると、描画データも一緒にバックアップされます。');
+        }
     </script>
 </body>
 </html>
