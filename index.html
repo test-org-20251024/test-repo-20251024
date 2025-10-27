@@ -174,10 +174,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: l
 <div class="action-buttons">
 <button class="btn btn-primary" id="saveBtn">💾 保存</button>
 <button class="btn btn-drawing" id="drawingBtn">🎨 描画アプリ</button>
+<button class="btn btn-secondary" id="dataStorageBtn">🗄️ データ保存</button>
 <button class="btn btn-secondary" id="backupBtn">📥 バックアップDL</button>
 <button class="btn btn-warning" id="restoreBtn">📤 復元</button>
 <button class="btn btn-secondary" id="newBtn">➕ 新規顧客</button>
 <button class="btn btn-danger" id="deleteBtn">🗑️ 削除</button>
+<button class="btn btn-danger" id="bugReportBtn" style="background: #e74c3c;">🐛 バグ報告</button>
 </div>
 <div class="section">
 <h3>📋 顧客一覧</h3>
@@ -188,32 +190,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: l
 </div>
 <input type="file" id="restoreFile" accept=".json" style="display:none">
 <script>
-// ===============================================
-// ライセンス認証チェック（最優先実行）
-// ===============================================
 function checkAuth() {
     const authInfo = localStorage.getItem('salonLicense');
-    
     if (!authInfo) {
         alert('ライセンス認証が必要です。認証ページへ移動します。');
         window.location.href = 'license.html';
         return false;
     }
-    
     try {
         const auth = JSON.parse(authInfo);
-        
-        // 有効期限チェック
         if (new Date(auth.validUntil) < new Date()) {
             alert('ライセンスの有効期限が切れています。再認証が必要です。');
             localStorage.removeItem('salonLicense');
             window.location.href = 'license.html';
             return false;
         }
-        
-        // プラン情報を表示
         displayLicenseInfo(auth);
-        
         return true;
     } catch (e) {
         console.error('認証エラー:', e);
@@ -226,11 +218,8 @@ function checkAuth() {
 function displayLicenseInfo(auth) {
     const planDisplay = auth.planName || 'Free版';
     const validDate = new Date(auth.validUntil).toLocaleDateString('ja-JP');
-    
     document.getElementById('planNameDesktop').textContent = planDisplay + ' (有効期限: ' + validDate + ')';
     document.getElementById('planNameMobile').textContent = planDisplay;
-    
-    // プラン別のバッジ更新
     const badge = document.getElementById('planBadge');
     if (auth.plan === 'free') {
         badge.textContent = 'FREE版 - 顧客10名まで | ブラウザ保存20回分';
@@ -245,49 +234,24 @@ function displayLicenseInfo(auth) {
 
 function logout() {
     if (!confirm('ログアウトしますか？')) return;
-    
     localStorage.removeItem('salonLicense');
     alert('ログアウトしました');
     window.location.href = 'license.html';
 }
 
-// ===============================================
-// メインシステム
-// ===============================================
 let customers = [];
 let currentCustomerId = null;
 const MAX_CUSTOMERS = 10;
 const MAX_BROWSER_STORAGE = 20;
-
 const rodPositions = ['前髪','フロント','右サイド上','右サイド下','左サイド上','左サイド下','トップ','クラウン','バック','右バックサイド上','右バックサイド下','左バックサイド上','左バックサイド下','ネープ','右ネープ','左ネープ'];
 
 window.onload = function() {
-    // 認証チェック（最優先）
-    if (!checkAuth()) {
-        return; // 認証失敗時はここで処理終了
-    }
-    
-    // 認証成功後、システム初期化
+    if (!checkAuth()) return;
     initSystem();
     loadAdScript();
 };
 
-function loadAdScript() {
-    /* Google AdSense使用時は下記コメント解除
-    const s = document.createElement('script');
-    s.async = true;
-    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX';
-    s.crossOrigin = 'anonymous';
-    document.head.appendChild(s);
-    s.onload = () => {
-        try {
-            (adsbygoogle = window.adsbygoogle || []).push({});
-        } catch(e) {
-            console.error('AdSense読み込みエラー', e);
-        }
-    };
-    */
-}
+function loadAdScript() {}
 
 function initSystem() {
     generateCustomerId();
@@ -300,11 +264,13 @@ function initSystem() {
 function setupEventListeners() {
     document.getElementById('saveBtn').onclick = saveCustomer;
     document.getElementById('drawingBtn').onclick = openDrawing;
+    document.getElementById('dataStorageBtn').onclick = openDataStorage;
     document.getElementById('backupBtn').onclick = downloadBackup;
     document.getElementById('restoreBtn').onclick = () => document.getElementById('restoreFile').click();
     document.getElementById('restoreFile').onchange = restoreFromFile;
     document.getElementById('newBtn').onclick = newCustomer;
     document.getElementById('deleteBtn').onclick = deleteCustomer;
+    document.getElementById('bugReportBtn').onclick = openBugReport;
     document.getElementById('customerSearch').oninput = function() { displayCustomerList(this.value); };
     document.getElementById('globalSearch').oninput = function() { displayCustomerList(this.value); };
 }
@@ -336,32 +302,25 @@ function saveToLocalStorage() {
 async function saveCustomer() {
     const name = document.getElementById('customerName').value.trim();
     const date = document.getElementById('visitDate').value;
-    
     if (!name || !date) {
         alert('必須項目（お名前・来店日）を入力してください');
         return;
     }
-    
     const idx = customers.findIndex(c => c.id === currentCustomerId);
-    
     if (idx === -1 && customers.length >= MAX_CUSTOMERS) {
         alert('Free版は最大10名までです。Basic版へのアップグレードをご検討ください。');
         return;
     }
-    
     const menus = [];
     ['menuCut','menuColor','menuPerm','menuTreatment','menuStraight','menuHeadSpa','menuSet','menuOther'].forEach(id => {
         const cb = document.getElementById(id);
         if (cb.checked) menus.push(cb.value);
     });
-    
     const rods = rodPositions.map((p, i) => ({
         position: p,
         rod: document.getElementById('rod' + i).value
     }));
-    
     const drawings = await getDrawingData(currentCustomerId);
-    
     const data = {
         id: currentCustomerId,
         name,
@@ -388,17 +347,14 @@ async function saveCustomer() {
         timestamp: new Date().toISOString(),
         drawings
     };
-    
     if (idx >= 0) {
         customers[idx] = data;
     } else {
         customers.push(data);
     }
-    
     saveToLocalStorage();
     updateDisplay();
     alert('保存完了しました！');
-    
     if (confirm('バックアップをダウンロードしますか？')) {
         downloadBackup();
     }
@@ -407,17 +363,14 @@ async function saveCustomer() {
 async function getDrawingData(id) {
     const s = localStorage.getItem('drawing_' + id);
     if (!s) return null;
-    
     const d = JSON.parse(s);
     if (!d.drawings) return null;
-    
     const r = {};
     ['front','back','left','right','top','diagonal-left','diagonal-right','diagonal-left-back','diagonal-right-back'].forEach(v => {
         if (d.drawings[v] && d.drawings[v].length > 0) {
             r[v] = d.drawings[v][d.drawings[v].length - 1];
         }
     });
-    
     return r;
 }
 
@@ -429,28 +382,33 @@ function openDrawing() {
     window.location.href = 'drawing.html?id=' + currentCustomerId;
 }
 
+function openDataStorage() {
+    window.location.href = 'data-storage.html';
+}
+
+function openBugReport() {
+    window.location.href = 'bug-report.html';
+}
+
 function downloadBackup() {
     if (!customers.length) {
         alert('バックアップするデータがありません');
         return;
     }
-    
     const authInfo = JSON.parse(localStorage.getItem('salonLicense') || '{}');
-    
     const b = {
         version: 'free',
-        brand: '髪ノート',
+        brand: 'Crine',
         plan: authInfo.plan || 'free',
         exportDate: new Date().toISOString(),
         totalRecords: customers.length,
         customers
     };
-    
     const blob = new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-                a.download = 'crine_free_backup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5) + '.json';
+    a.download = 'crine_free_backup_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5) + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -461,26 +419,20 @@ function downloadBackup() {
 function restoreFromFile(e) {
     const f = e.target.files[0];
     if (!f) return;
-    
     if (!confirm('現在のデータは上書きされます。復元しますか？')) {
         e.target.value = '';
         return;
     }
-    
     const r = new FileReader();
     r.onload = function(ev) {
         try {
             const b = JSON.parse(ev.target.result);
-            
             if (!b.customers || !Array.isArray(b.customers)) {
                 alert('無効なバックアップファイルです');
                 return;
             }
-            
             customers = b.customers;
             saveToLocalStorage();
-            
-            // 描画データも復元
             customers.forEach(c => {
                 if (c.drawings) {
                     const d = {
@@ -488,17 +440,14 @@ function restoreFromFile(e) {
                         drawings: {},
                         timestamp: c.timestamp
                     };
-                    
                     ['front','back','left','right','top','diagonal-left','diagonal-right','diagonal-left-back','diagonal-right-back'].forEach(v => {
                         if (c.drawings[v]) {
                             d.drawings[v] = [c.drawings[v]];
                         }
                     });
-                    
                     localStorage.setItem('drawing_' + c.id, JSON.stringify(d));
                 }
             });
-            
             updateDisplay();
             alert('復元完了！');
         } catch (err) {
@@ -512,17 +461,13 @@ function restoreFromFile(e) {
 
 function newCustomer() {
     if (!confirm('新規顧客を作成しますか？現在の編集内容は失われます。')) return;
-    
     currentCustomerId = null;
-    
     document.querySelectorAll('input[type="text"],input[type="number"],input[type="date"],textarea').forEach(i => {
         if (i.id !== 'customerId' && i.id !== 'customerSearch' && i.id !== 'globalSearch') {
             i.value = '';
         }
     });
-    
     document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
-    
     generateCustomerId();
     setTodayDate();
 }
@@ -532,15 +477,12 @@ function deleteCustomer() {
         alert('削除する顧客を選択してください');
         return;
     }
-    
     const c = customers.find(x => x.id === currentCustomerId);
     if (!c) {
         alert('顧客データが見つかりません');
         return;
     }
-    
     if (!confirm(c.name + '様のデータを削除しますか？この操作は取り消せません。')) return;
-    
     customers = customers.filter(x => x.id !== currentCustomerId);
     localStorage.removeItem('drawing_' + currentCustomerId);
     saveToLocalStorage();
@@ -556,11 +498,9 @@ function loadCustomerData(d) {
     document.getElementById('customerAge').value = d.age || '';
     document.getElementById('visitDate').value = d.date || '';
     document.getElementById('stylistName').value = d.stylist || '';
-    
     document.querySelectorAll('input[type="checkbox"]').forEach(c => {
         c.checked = d.menus && d.menus.includes(c.value);
     });
-    
     document.getElementById('servicePrice').value = d.price || '';
     document.getElementById('serviceTime').value = d.time || '';
     document.getElementById('color1').value = d.color1 || '';
@@ -572,20 +512,16 @@ function loadCustomerData(d) {
     document.getElementById('straightNotes').value = d.straightNotes || '';
     document.getElementById('spaNote').value = d.spaNote || '';
     document.getElementById('chemical').value = d.chemical || '';
-    
     if (d.rods) {
         d.rods.forEach((r, i) => {
             const inp = document.getElementById('rod' + i);
             if (inp) inp.value = r.rod || '';
         });
     }
-    
     document.getElementById('processTime').value = d.processTime || '';
     document.getElementById('finishState').value = d.finishState || '';
     document.getElementById('notes1').value = d.notes1 || '';
     document.getElementById('notes2').value = d.notes2 || '';
-    
-    // スクロールをトップに
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -593,40 +529,31 @@ function updateDisplay() {
     document.getElementById('storageInfo').textContent = 
         '登録顧客数: ' + customers.length + '/' + MAX_CUSTOMERS + 
         ' | ブラウザ保存: ' + Math.min(customers.length, MAX_BROWSER_STORAGE) + '/' + MAX_BROWSER_STORAGE + '回分';
-    
     document.getElementById('limitWarning').style.display = 
         customers.length >= MAX_CUSTOMERS ? 'block' : 'none';
-    
     displayCustomerList();
 }
 
 function displayCustomerList(s = '') {
     const l = document.getElementById('customerList');
-    
     if (!customers.length) {
         l.innerHTML = '<div style="text-align:center;color:#999;padding:20px">顧客データがありません</div>';
         return;
     }
-    
     const f = customers.filter(c => 
         !s || 
         c.name.includes(s) || 
         c.id.includes(s) || 
         (c.stylist && c.stylist.includes(s))
     );
-    
     if (!f.length) {
         l.innerHTML = '<div style="text-align:center;color:#999;padding:20px">検索結果が見つかりません</div>';
         return;
     }
-    
-    // 最新順にソート
     f.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
     l.innerHTML = f.map(c => {
         const hasDrawing = c.drawings && Object.keys(c.drawings).length > 0;
         const drawingBadge = hasDrawing ? '<span style="background:#f093fb;color:white;padding:3px 8px;border-radius:10px;font-size:11px;margin-left:8px">🎨 描画済</span>' : '';
-        
         return `<div class="customer-item" onclick='loadCustomerData(${JSON.stringify(c).replace(/'/g, "&apos;")})'>\
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">\
 <div style="font-weight:700;font-size:16px">${c.name}${drawingBadge}</div>\
