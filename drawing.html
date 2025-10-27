@@ -7,7 +7,7 @@
         default-src 'self';
         script-src 'self' 'unsafe-inline';
         style-src 'self' 'unsafe-inline';
-        img-src 'self' data: blob:;
+        img-src 'self' data:;
         connect-src 'self';
     ">
     <title>Crine - 頭部イラスト描画</title>
@@ -80,10 +80,6 @@
 
         .notice-box li {
             margin-bottom: 5px;
-        }
-
-        .notice-box strong {
-            color: #d39e00;
         }
 
         .view-selector {
@@ -193,6 +189,19 @@
             min-width: 150px;
         }
 
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #f093fb;
+        }
+
         .action-buttons {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -280,7 +289,7 @@
 
         <div class="canvas-container">
             <div class="canvas-wrapper">
-                <img id="headSvg" class="head-svg" alt="頭部イラスト" style="display:none;">
+                <img id="headSvg" class="head-svg" alt="頭部イラスト">
                 <canvas id="drawingCanvas"></canvas>
             </div>
         </div>
@@ -295,8 +304,6 @@
                     <div class="color-btn" data-color="#00FF00" style="background:#00FF00;" title="緑"></div>
                     <div class="color-btn" data-color="#FFFF00" style="background:#FFFF00;" title="黄"></div>
                     <div class="color-btn" data-color="#FF00FF" style="background:#FF00FF;" title="紫"></div>
-                    <div class="color-btn" data-color="#FFA500" style="background:#FFA500;" title="オレンジ"></div>
-                    <div class="color-btn" data-color="#8B4513" style="background:#8B4513;" title="茶"></div>
                 </div>
             </div>
 
@@ -304,6 +311,11 @@
                 <label>太さ:</label>
                 <input type="range" id="brushSize" min="1" max="20" value="3">
                 <span id="brushSizeValue">3px</span>
+            </div>
+
+            <div class="control-group">
+                <label>メモ:</label>
+                <input type="text" id="drawingMemo" placeholder="この描画に関するメモ（任意）">
             </div>
         </div>
 
@@ -316,7 +328,6 @@
     </div>
 
     <script>
-        // グローバル変数
         let canvas, ctx;
         let isDrawing = false;
         let currentColor = '#000000';
@@ -338,7 +349,6 @@
             { id: 'diagonal-right-back', label: '斜め右後', file: 'head-diagonal-right-back.svg' }
         ];
 
-        // 初期化
         window.addEventListener('DOMContentLoaded', function() {
             if (!checkAuth()) return;
             
@@ -395,7 +405,6 @@
             canvas = document.getElementById('drawingCanvas');
             ctx = canvas.getContext('2d');
             
-            // キャンバスサイズ設定（高解像度対応）
             const container = canvas.parentElement;
             const size = container.offsetWidth;
             
@@ -438,30 +447,8 @@
             if (!view) return;
             
             const img = document.getElementById('headSvg');
-            const svgPath = `images/${view.file}`;
-            
-            // キャッシュバスター追加（iPad対策）
-            const cacheBuster = '?v=' + Date.now();
-            
-            img.onload = function() {
-                console.log('SVG読み込み成功:', view.file);
-                img.style.display = 'block';
-                loadViewDrawing(viewId);
-            };
-            
-            img.onerror = function() {
-                console.error('SVG読み込み失敗:', view.file);
-                alert(`画像の読み込みに失敗しました: ${view.file}\n\nブラウザを再読み込みしてください。`);
-                img.style.display = 'none';
-            };
-            
-            // 明示的なサイズ指定（iPad Safari対策）
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.setAttribute('width', '100%');
-            img.setAttribute('height', '100%');
-            
-            img.src = svgPath + cacheBuster;
+            img.src = `images/${view.file}`;
+            img.onload = () => loadViewDrawing(viewId);
         }
 
         function saveCurrentDrawing() {
@@ -498,7 +485,6 @@
         }
 
         function setupEventListeners() {
-            // カラーボタン
             document.querySelectorAll('.color-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
@@ -507,14 +493,12 @@
                 });
             });
 
-            // ブラシサイズ
             const brushSize = document.getElementById('brushSize');
             brushSize.addEventListener('input', function() {
                 currentBrushSize = parseInt(this.value);
                 document.getElementById('brushSizeValue').textContent = currentBrushSize + 'px';
             });
 
-            // 描画イベント（タッチ対応）
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
@@ -524,14 +508,11 @@
             canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
             canvas.addEventListener('touchend', stopDrawing);
 
-            // ボタン
             document.getElementById('saveBtn').addEventListener('click', saveDrawing);
             document.getElementById('clearBtn').addEventListener('click', clearCanvas);
             document.getElementById('undoBtn').addEventListener('click', undo);
             document.getElementById('backBtn').addEventListener('click', () => {
-                if (confirm('メインカルテに戻りますか？未保存の描画がある場合は保存してください。')) {
-                    window.location.href = 'index.html';
-                }
+                window.location.href = 'index.html';
             });
         }
 
@@ -610,10 +591,7 @@
         }
 
         function undo() {
-            if (currentStrokes.length === 0) {
-                alert('戻る操作がありません');
-                return;
-            }
+            if (currentStrokes.length === 0) return;
             
             currentStrokes.pop();
             drawingHistory[currentView] = [...currentStrokes];
@@ -641,6 +619,8 @@
         function saveDrawing() {
             saveCurrentDrawing();
             
+            const memo = document.getElementById('drawingMemo').value;
+            
             const allDrawings = {};
             Object.keys(drawingHistory).forEach(viewId => {
                 if (drawingHistory[viewId] && drawingHistory[viewId].length > 0) {
@@ -651,11 +631,12 @@
             const data = {
                 customerId: customerId,
                 drawings: allDrawings,
+                memo: memo,
                 timestamp: new Date().toISOString()
             };
             
             localStorage.setItem('drawing_' + customerId, JSON.stringify(data));
-            alert('✅ 描画データを保存しました！\n\nメインカルテに戻って「保存」すると、描画データも一緒にバックアップされます。');
+            alert('描画データを保存しました！');
         }
     </script>
 </body>
