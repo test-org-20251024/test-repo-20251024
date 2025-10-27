@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:;
+        connect-src 'self' https://www.googleapis.com https://accounts.google.com;
+        frame-src https://accounts.google.com;
+    ">
+    <title>Crine Free - データ保存</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .plan-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.25);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #2d3436;
+            font-size: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-value {
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 18px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-success {
+            background: #00b894;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #fdcb6e;
+            color: #2d3436;
+        }
+
+        .btn-danger {
+            background: #ff7675;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-google {
+            background: #4285f4;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .history-info {
+            flex: 1;
+        }
+
+        .history-date {
+            font-weight: 700;
+            color: #2d3436;
+            margin-bottom: 5px;
+        }
+
+        .history-meta {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        .feature-note {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .feature-note strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .section {
+                padding: 20px;
+            }
+
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💾 Crine Free - データ保存</h1>
+            <p>メインカルテ + 描画データの統合バックアップ</p>
+            <div class="plan-badge" id="planBadge">Crine Free版</div>
+        </div>
+
+        <div class="content">
+            <div class="alert alert-success" id="alertSuccess"></div>
+            <div class="alert alert-error" id="alertError"></div>
+            <div class="alert alert-info" id="alertInfo"></div>
+
+            <div class="section">
+                <h2>📊 データ概要</h2>
+                <div class="info-box">
+                    <div class="info-item">
+                        <span class="info-label">登録顧客数</span>
+                        <span class="info-value" id="customerCount">0名</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">描画データ</span>
+                        <span class="info-value" id="drawingCount">0件</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">データサイズ（推定）</span>
+                        <span class="info-value" id="dataSize">0 KB</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">最終更新</span>
+                        <span class="info-value" id="lastUpdate">未保存</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>💻 ローカルバックアップ</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    メインカルテと描画データを1つのJSONファイルにまとめてダウンロードします。
+                </p>
+                <div class="button-grid">
+                    <button class="btn btn-success" id="downloadBtn">
+                        📥 バックアップをダウンロード
+                    </button>
+                    <button class="btn btn-warning" id="uploadBtn">
+                        📤 バックアップから復元
+                    </button>
+                </div>
+                <input type="file" id="fileInput" accept=".json">
+            </div>
+
+            <div class="section">
+                <h2>☁️ Googleドライブ連携</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    Googleドライブに手動でバックアップ・復元できます。
+                </p>
+                <div class="button-grid">
+                    <button class="btn btn-google" id="googleSignInBtn">
+                        🔐 Googleアカウントで認証
+                    </button>
+                    <button class="btn btn-primary" id="googleUploadBtn" disabled>
+                        ☁️ ドライブにアップロード
+                    </button>
+                    <button class="btn btn-secondary" id="googleDownloadBtn" disabled>
+                        📥 ドライブから復元
+                    </button>
+                </div>
+                <div class="feature-note">
+                    <strong>⚠️ 注意事項</strong>
+                    Googleドライブ連携を使用するには、Google Cloud Platformでプロジェクトを作成し、Drive APIを有効化する必要があります。Free版では手動バックアップのみ完全対応しています。
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📜 バックアップ履歴</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    過去のバックアップ履歴（ローカルストレージに保存）
+                </p>
+                <div class="history-list" id="historyList">
+                    <p style="text-align: center; color: #999; padding: 20px;">
+                        バックアップ履歴はありません
+                    </p>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-danger" id="clearHistoryBtn">
+                        🗑️ 履歴をクリア
+                    </button>
+                </div>
+            </div>
+
+            <div class="back-link">
+                <a href="index.html" id="backToMainLink">← メインカルテに戻る</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function checkAuth() {
+            const authInfo = localStorage.getItem('salonLicense');
+            
+            if (!authInfo) {
+                alert('メインアプリから起動してください');
+                window.location.href = 'index.html';
+                return false;
+            }
+            
+            try {
+                const auth = JSON.parse(authInfo);
+                
+                if (new Date(auth.validUntil) < new Date()) {
+                    alert('ライセンスの有効期限が切れています');
+                    localStorage.removeItem('salonLicense');
+                    window.location.href = 'license.html';
+                    return false;
+                }
+                
+                document.getElementById('planBadge').textContent = auth.planName || 'Free版';
+                
+                return true;
+            } catch (e) {
+                console.error('認証エラー:', e);
+                localStorage.removeItem('salonLicense');
+                window.location.href = 'license.html';
+                return false;
+            }
+        }
+
+        let googleAccessToken = null;
+
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!checkAuth()) {
+                return;
+            }
+            
+            updateDataSummary();
+            loadBackupHistory();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('downloadBtn').addEventListener('click', downloadBackup);
+            document.getElementById('uploadBtn').addEventListener('click', () => {
+                document.getElementById('fileInput').click();
+            });
+            document.getElementById('fileInput').addEventListener('change', restoreFromFile);
+            document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+            
+            document.getElementById('googleSignInBtn').addEventListener('click', googleSignIn);
+            document.getElementById('googleUploadBtn').addEventListener('click', uploadToGoogleDrive);
+            document.getElementById('googleDownloadBtn').addEventListener('click', downloadFromGoogleDrive);
+        }
+
+        function updateDataSummary() {
+            const mainData = localStorage.getItem('salonCustomersFree');
+            let customers = [];
+            if (mainData) {
+                try {
+                    customers = JSON.parse(mainData);
+                } catch (e) {
+                    console.error('メインデータ読み込みエラー:', e);
+                }
+            }
+            
+            let drawingCount = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('drawing_')) {
+                    drawingCount++;
+                }
+            }
+            
+            let totalSize = 0;
+            if (mainData) totalSize += mainData.length;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('drawing_')) {
+                    const data = localStorage.getItem(key);
+                    if (data) totalSize += data.length;
+                }
+            }
+            
+            let lastUpdate = '未保存';
+            if (customers.length > 0) {
+                const timestamps = customers.map(c => new Date(c.timestamp)).filter(d => !isNaN(d));
+                if (timestamps.length > 0) {
+                    const latest = new Date(Math.max(...timestamps));
+                    lastUpdate = latest.toLocaleString('ja-JP');
+                }
+            }
+            
+            document.getElementById('customerCount').textContent = customers.length + '名';
+            document.getElementById('drawingCount').textContent = drawingCount + '件';
+            document.getElementById('dataSize').textContent = Math.round(totalSize / 1024) + ' KB';
+            document.getElementById('lastUpdate').textContent = lastUpdate;
+        }
+
+        function downloadBackup() {
+            try {
+                const mainData = localStorage.getItem('salonCustomersFree');
+                let customers = [];
+                if (mainData) {
+                    customers = JSON.parse(mainData);
+                }
+                
+                if (customers.length === 0) {
+                    showAlert('error', 'バックアップするデータがありません');
+                    return;
+                }
+                
+                const allDrawings = {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('drawing_')) {
+                        const customerId = key.replace('drawing_', '');
+                        const drawingData = localStorage.getItem(key);
+                        if (drawingData) {
+                            try {
+                                allDrawings[customerId] = JSON.parse(drawingData);
+                            } catch (e) {
+                                console.error('描画データ読み込みエラー:', key, e);
+                            }
+                        }
+                    }
+                }
+                
+                const authInfo = JSON.parse(localStorage.getItem('salonLicense') || '{}');
+                
+                const backupData = {
+                    version: '1.0',
+                    brand: 'Crine',
+                    plan: authInfo.plan || 'free',
+                    exportDate: new Date().toISOString(),
+                    customerCount: customers.length,
+                    drawingCount: Object.keys(allDrawings).length,
+                    mainData: {
+                        customers: customers
+                    },
+                    drawingData: allDrawings
+                };
+                
+                const blob = new Blob([JSON.stringify(backupData, null, 2)], { 
+                    type: 'application/json' 
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `crine_free_backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                saveToHistory(backupData);
+                
+                showAlert('success', `バックアップ完了！ ${customers.length}名分のデータを保存しました。`);
+                updateDataSummary();
+                loadBackupHistory();
+                
+            } catch (error) {
+                console.error('バックアップエラー:', error);
+                showAlert('error', 'バックアップに失敗しました: ' + error.message);
+            }
+        }
+
+        function restoreFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!confirm('現在のデータは上書きされます。復元を実行しますか？')) {
+                event.target.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const backupData = JSON.parse(e.target.result);
+                    
+                    if (!backupData.mainData || !backupData.mainData.customers) {
+                        throw new Error('無効なバックアップファイルです');
+                    }
+                    
+                    const customers = backupData.mainData.customers;
+                    localStorage.setItem('salonCustomersFree', JSON.stringify(customers));
+                    
+                    if (backupData.drawingData) {
+                        Object.keys(backupData.drawingData).forEach(customerId => {
+                            const drawingData = backupData.drawingData[customerId];
+                            localStorage.setItem('drawing_' + customerId, JSON.stringify(drawingData));
+                        });
+                    }
+                    
+                    showAlert('success', `復元完了！ ${customers.length}名分のデータを復元しました。`);
+                    updateDataSummary();
+                    
+                } catch (error) {
+                    console.error('復元エラー:', error);
+                    showAlert('error', '復元に失敗しました: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function() {
+                showAlert('error', 'ファイルの読み込みに失敗しました');
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function saveToHistory(backupData) {
+            const history = JSON.parse(localStorage.getItem('backupHistory') || '[]');
+            
+            history.unshift({
+                date: backupData.exportDate,
+                customerCount: backupData.customerCount,
+                drawingCount: backupData.drawingCount,
+                plan: backupData.plan
+            });
+            
+            if (history.length > 10) {
+                history.splice(10);
+            }
+            
+            localStorage.setItem('backupHistory', JSON.stringify(history));
+        }
+
+        function loadBackupHistory() {
+            const history = JSON.parse(localStorage.getItem('backupHistory') || '[]');
+            const listElement = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                listElement.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">バックアップ履歴はありません</p>';
+                return;
+            }
+            
+            listElement.innerHTML = history.map(item => {
+                const date = new Date(item.date);
+                return `
+                    <div class="history-item">
+                        <div class="history-info">
+                            <div class="history-date">${date.toLocaleString('ja-JP')}</div>
+                            <div class="history-meta">
+                                顧客: ${item.customerCount}名 | 描画: ${item.drawingCount}件 | ${item.plan}版
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearHistory() {
+            if (!confirm('バックアップ履歴を削除しますか？（実際のデータは削除されません）')) {
+                return;
+            }
+            
+            localStorage.removeItem('backupHistory');
+            loadBackupHistory();
+            showAlert('success', '履歴をクリアしました');
+        }
+
+        function googleSignIn() {
+            showAlert('info', 'Googleドライブ連携は開発中です。現在はローカルバックアップをご利用ください。');
+        }
+
+        function uploadToGoogleDrive() {
+            showAlert('info', 'この機能は開発中です');
+        }
+
+        function downloadFromGoogleDrive() {
+            showAlert('info', 'この機能は開発中です');
+        }
+
+        function showAlert(type, message) {
+            const alertElement = document.getElementById('alert' + type.charAt(0).toUpperCase() + type.slice(1));
+            if (!alertElement) return;
+            
+            document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
+            
+            alertElement.textContent = message;
+            alertElement.style.display = 'block';
+            
+            setTimeout(() => {
+                alertElement.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
