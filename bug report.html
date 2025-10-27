@@ -3,14 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' 'unsafe-inline';
-        style-src 'self' 'unsafe-inline';
-        img-src 'self' data:;
-        connect-src 'self';
-    ">
-    <title>髪ノート - バグ報告</title>
+    <title>Crine - バグ報告</title>
     <style>
         * {
             margin: 0;
@@ -23,11 +16,14 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .container {
-            max-width: 800px;
-            margin: 0 auto;
+            max-width: 600px;
+            width: 100%;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -42,23 +38,14 @@
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
             margin-bottom: 10px;
         }
 
         .header p {
-            font-size: 16px;
-            opacity: 0.95;
-        }
-
-        .beta-badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.25);
-            padding: 8px 20px;
-            border-radius: 20px;
             font-size: 14px;
-            margin-top: 10px;
+            opacity: 0.95;
         }
 
         .content {
@@ -76,29 +63,13 @@
         .info-box h3 {
             color: #1976d2;
             margin-bottom: 10px;
-            font-size: 18px;
+            font-size: 16px;
         }
 
-        .info-box ul {
-            margin-left: 20px;
-            line-height: 1.8;
+        .info-box p {
             color: #555;
-        }
-
-        .form-section {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-
-        .form-section h2 {
-            color: #2d3436;
-            font-size: 24px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            line-height: 1.6;
+            font-size: 14px;
         }
 
         .form-group {
@@ -113,7 +84,7 @@
             font-size: 15px;
         }
 
-        .form-group label span {
+        .form-group label .required {
             color: #e74c3c;
             margin-left: 5px;
         }
@@ -143,70 +114,14 @@
             resize: vertical;
         }
 
-        .form-group select {
-            cursor: pointer;
-        }
-
-        .severity-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-        }
-
-        .severity-option {
-            position: relative;
-        }
-
-        .severity-option input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-        }
-
-        .severity-option label {
-            display: block;
-            padding: 15px;
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .severity-option input[type="radio"]:checked + label {
-            border-color: #e74c3c;
-            background: #fee;
-            color: #e74c3c;
-        }
-
-        .severity-option label:hover {
-            border-color: #e74c3c;
-            transform: translateY(-2px);
-        }
-
-        .system-info {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            font-size: 13px;
-            color: #666;
-            margin-top: 10px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .system-info div {
-            padding: 5px 0;
-        }
-
         .button-group {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
             margin-top: 30px;
         }
 
         .btn {
-            flex: 1;
             padding: 18px 25px;
             border: none;
             border-radius: 12px;
@@ -235,36 +150,12 @@
             color: white;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
         .alert {
             padding: 15px 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             font-weight: 600;
             display: none;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
         }
 
         .alert-error {
@@ -273,87 +164,22 @@
             border: 2px solid #f5c6cb;
         }
 
-        .report-history {
-            margin-top: 30px;
-        }
-
-        .history-item {
-            background: white;
-            padding: 15px;
+        .system-info {
+            background: #f8f9fa;
             border-radius: 10px;
-            margin-bottom: 10px;
-            border-left: 4px solid #e74c3c;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        .history-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .history-title {
-            font-weight: 700;
-            color: #2d3436;
-        }
-
-        .history-date {
+            padding: 15px;
             font-size: 12px;
-            color: #999;
+            color: #666;
+            margin-top: 20px;
         }
 
-        .history-severity {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-right: 8px;
-        }
-
-        .severity-critical { background: #fee; color: #e74c3c; }
-        .severity-high { background: #fff3cd; color: #856404; }
-        .severity-medium { background: #cce5ff; color: #004085; }
-        .severity-low { background: #d4edda; color: #155724; }
-
-        .back-link {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 30px;
-            border-top: 2px solid #e0e0e0;
-        }
-
-        .back-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .back-link a:hover {
-            text-decoration: underline;
+        .system-info div {
+            padding: 3px 0;
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 24px;
-            }
-
-            .content {
-                padding: 20px;
-            }
-
-            .form-section {
-                padding: 20px;
-            }
-
             .button-group {
-                flex-direction: column;
-            }
-
-            .severity-options {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -361,120 +187,70 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🐛 バグ報告システム</h1>
-            <p>髪ノート - システムの改善にご協力ください</p>
-            <div class="beta-badge" id="planBadge">Free版ベータテスト</div>
+            <h1>🐛 バグ報告</h1>
+            <p>Crine - システム改善にご協力ください</p>
         </div>
 
         <div class="content">
-            <div class="alert alert-success" id="alertSuccess"></div>
             <div class="alert alert-error" id="alertError"></div>
 
             <div class="info-box">
-                <h3>📋 バグ報告のお願い</h3>
-                <ul>
-                    <li>システムの不具合や改善点を報告してください</li>
-                    <li>できるだけ詳しく、再現手順を記載してください</li>
-                    <li>スクリーンショットがあると助かります（別途メール添付）</li>
-                    <li>報告内容はシステム改善のために使用されます</li>
-                </ul>
+                <h3>📧 Gmail で簡単報告</h3>
+                <p>
+                    下記のフォームに入力して「メールで送信」ボタンを押すと、あなたのGmailが開きます。
+                    内容を確認して「送信」ボタンを押してください。
+                </p>
             </div>
 
-            <div class="form-section">
-                <h2>🔍 バグ情報</h2>
-
+            <form id="bugReportForm">
                 <div class="form-group">
-                    <label>報告者名<span>*</span></label>
+                    <label>
+                        お名前
+                        <span class="required">*</span>
+                    </label>
                     <input type="text" id="reporterName" placeholder="山田 太郎" required>
                 </div>
 
                 <div class="form-group">
-                    <label>メールアドレス<span>*</span></label>
-                    <input type="email" id="reporterEmail" placeholder="example@example.com" required>
-                </div>
-
-                <div class="form-group">
-                    <label>バグのタイトル<span>*</span></label>
-                    <input type="text" id="bugTitle" placeholder="例: 顧客保存時にエラーが発生する" required>
-                </div>
-
-                <div class="form-group">
-                    <label>発生場所<span>*</span></label>
+                    <label>
+                        どこでバグが発生しましたか？
+                        <span class="required">*</span>
+                    </label>
                     <select id="bugLocation" required>
                         <option value="">選択してください</option>
-                        <option value="license">ライセンス認証画面</option>
-                        <option value="main">メインカルテ画面</option>
-                        <option value="drawing">描画アプリ画面</option>
-                        <option value="data-storage">データ保存画面</option>
-                        <option value="other">その他</option>
+                        <option value="ライセンス認証画面">ライセンス認証画面</option>
+                        <option value="メインカルテ画面">メインカルテ画面</option>
+                        <option value="描画アプリ画面">描画アプリ画面</option>
+                        <option value="データ保存画面">データ保存画面</option>
+                        <option value="その他">その他</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>重要度<span>*</span></label>
-                    <div class="severity-options">
-                        <div class="severity-option">
-                            <input type="radio" id="critical" name="severity" value="critical" required>
-                            <label for="critical">🔴 致命的</label>
-                        </div>
-                        <div class="severity-option">
-                            <input type="radio" id="high" name="severity" value="high">
-                            <label for="high">🟠 高</label>
-                        </div>
-                        <div class="severity-option">
-                            <input type="radio" id="medium" name="severity" value="medium">
-                            <label for="medium">🟡 中</label>
-                        </div>
-                        <div class="severity-option">
-                            <input type="radio" id="low" name="severity" value="low">
-                            <label for="low">🟢 低</label>
-                        </div>
-                    </div>
+                    <label>
+                        バグの内容
+                        <span class="required">*</span>
+                    </label>
+                    <textarea id="bugDescription" placeholder="例：&#10;1. メインカルテで顧客情報を入力&#10;2. 保存ボタンをクリック&#10;3. エラーメッセージが表示される" required></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label>詳細説明<span>*</span></label>
-                    <textarea id="bugDescription" placeholder="バグの詳細をできるだけ詳しく記載してください。&#10;&#10;例：&#10;1. メインカルテで顧客情報を入力&#10;2. 保存ボタンをクリック&#10;3. エラーメッセージが表示される&#10;4. データが保存されていない" required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>期待される動作</label>
-                    <textarea id="expectedBehavior" placeholder="本来どのように動作すべきか記載してください"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>追加情報・コメント</label>
-                    <textarea id="additionalInfo" placeholder="その他、参考になる情報があれば記載してください"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>システム情報（自動取得）</label>
-                    <div class="system-info" id="systemInfo">
-                        <div><strong>ブラウザ:</strong> <span id="browserInfo"></span></div>
-                        <div><strong>OS:</strong> <span id="osInfo"></span></div>
-                        <div><strong>画面サイズ:</strong> <span id="screenInfo"></span></div>
-                        <div><strong>報告日時:</strong> <span id="reportDate"></span></div>
-                    </div>
+                <div class="system-info">
+                    <strong>📱 システム情報（自動取得）</strong>
+                    <div>ブラウザ: <span id="browserInfo"></span></div>
+                    <div>OS: <span id="osInfo"></span></div>
+                    <div>画面: <span id="screenInfo"></span></div>
+                    <div>日時: <span id="dateInfo"></span></div>
                 </div>
 
                 <div class="button-group">
-                    <button class="btn btn-primary" id="submitBtn">📤 バグ報告を送信</button>
-                    <button class="btn btn-secondary" id="backBtn">← 戻る</button>
+                    <button type="submit" class="btn btn-primary">
+                        📧 メールで送信
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'">
+                        ← 戻る
+                    </button>
                 </div>
-            </div>
-
-            <div class="form-section report-history">
-                <h2>📜 過去の報告履歴</h2>
-                <div id="historyList">
-                    <p style="text-align: center; color: #999; padding: 20px;">
-                        報告履歴はありません
-                    </p>
-                </div>
-            </div>
-
-            <div class="back-link">
-                <a href="main.html">← メインカルテに戻る</a>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -487,7 +263,7 @@
             
             if (!authInfo) {
                 alert('メインアプリから起動してください');
-                window.location.href = 'main.html';
+                window.location.href = 'index.html';
                 return false;
             }
             
@@ -500,8 +276,6 @@
                     window.location.href = 'license.html';
                     return false;
                 }
-                
-                document.getElementById('planBadge').textContent = (auth.planName || 'Free版') + ' ベータテスト';
                 
                 return true;
             } catch (e) {
@@ -521,16 +295,8 @@
             }
             
             initSystemInfo();
-            loadReportHistory();
-            setupEventListeners();
+            setupForm();
         });
-
-        function setupEventListeners() {
-            document.getElementById('submitBtn').addEventListener('click', submitBugReport);
-            document.getElementById('backBtn').addEventListener('click', () => {
-                window.location.href = 'main.html';
-            });
-        }
 
         function initSystemInfo() {
             // ブラウザ情報
@@ -541,7 +307,7 @@
             else if (ua.indexOf('Firefox') > -1) browser = 'Firefox';
             else if (ua.indexOf('Edge') > -1) browser = 'Edge';
             
-            document.getElementById('browserInfo').textContent = browser + ' ' + (navigator.appVersion.match(/Chrome\/(\d+)/) || ['', 'N/A'])[1];
+            document.getElementById('browserInfo').textContent = browser;
             
             // OS情報
             let os = 'Unknown';
@@ -556,94 +322,80 @@
             // 画面サイズ
             document.getElementById('screenInfo').textContent = window.screen.width + ' × ' + window.screen.height;
             
-            // 報告日時
-            document.getElementById('reportDate').textContent = new Date().toLocaleString('ja-JP');
+            // 日時
+            document.getElementById('dateInfo').textContent = new Date().toLocaleString('ja-JP');
         }
 
-        function submitBugReport() {
-            // バリデーション
-            const reporterName = document.getElementById('reporterName').value.trim();
-            const reporterEmail = document.getElementById('reporterEmail').value.trim();
-            const bugTitle = document.getElementById('bugTitle').value.trim();
-            const bugLocation = document.getElementById('bugLocation').value;
-            const severity = document.querySelector('input[name="severity"]:checked');
-            const bugDescription = document.getElementById('bugDescription').value.trim();
-            
-            if (!reporterName || !reporterEmail || !bugTitle || !bugLocation || !severity || !bugDescription) {
-                showAlert('error', '必須項目をすべて入力してください');
-                return;
-            }
-            
-            // メールアドレス検証
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(reporterEmail)) {
-                showAlert('error', '有効なメールアドレスを入力してください');
-                return;
-            }
-            
-            // バグレポートデータ
-            const bugReport = {
-                id: 'BUG-' + Date.now(),
-                reporterName,
-                reporterEmail,
-                bugTitle,
-                bugLocation,
-                severity: severity.value,
-                bugDescription,
-                expectedBehavior: document.getElementById('expectedBehavior').value.trim(),
-                additionalInfo: document.getElementById('additionalInfo').value.trim(),
-                systemInfo: {
-                    browser: document.getElementById('browserInfo').textContent,
-                    os: document.getElementById('osInfo').textContent,
-                    screen: document.getElementById('screenInfo').textContent,
-                    userAgent: navigator.userAgent
-                },
-                reportDate: new Date().toISOString(),
-                status: 'submitted'
-            };
-            
-            // ローカルストレージに保存
-            saveToHistory(bugReport);
-            
-            // JSONファイルとしてダウンロード
-            downloadBugReport(bugReport);
-            
-            showAlert('success', 'バグ報告を送信しました！開発者に共有してください。');
-            
-            // フォームをクリア
-            setTimeout(() => {
-                document.getElementById('reporterName').value = '';
-                document.getElementById('reporterEmail').value = '';
-                document.getElementById('bugTitle').value = '';
-                document.getElementById('bugLocation').value = '';
-                document.querySelectorAll('input[name="severity"]').forEach(r => r.checked = false);
-                document.getElementById('bugDescription').value = '';
-                document.getElementById('expectedBehavior').value = '';
-                document.getElementById('additionalInfo').value = '';
+        function setupForm() {
+            document.getElementById('bugReportForm').addEventListener('submit', function(e) {
+                e.preventDefault();
                 
-                loadReportHistory();
-            }, 2000);
-        }
+                // バリデーション
+                const reporterName = document.getElementById('reporterName').value.trim();
+                const bugLocation = document.getElementById('bugLocation').value;
+                const bugDescription = document.getElementById('bugDescription').value.trim();
+                
+                if (!reporterName || !bugLocation || !bugDescription) {
+                    showAlert('必須項目をすべて入力してください');
+                    return;
+                }
+                
+                // メール本文を作成
+                const subject = encodeURIComponent('【Crine】バグ報告');
+                
+                const body = encodeURIComponent(`
+【バグ報告】
 
-        function downloadBugReport(bugReport) {
-            const blob = new Blob([JSON.stringify(bugReport, null, 2)], {
-                type: 'application/json'
+■ 報告者: ${reporterName}
+
+■ 発生場所: ${bugLocation}
+
+■ バグの内容:
+${bugDescription}
+
+■ システム情報:
+ブラウザ: ${document.getElementById('browserInfo').textContent}
+OS: ${document.getElementById('osInfo').textContent}
+画面サイズ: ${document.getElementById('screenInfo').textContent}
+報告日時: ${document.getElementById('dateInfo').textContent}
+
+User Agent: ${navigator.userAgent}
+
+---
+※ このメールはCrineのバグ報告システムから送信されました
+                `.trim());
+                
+                // あなたのメールアドレス
+                const yourEmail = 'capilus.official@gmail.com';
+                
+                // mailto: リンクを作成
+                const mailtoLink = `mailto:${yourEmail}?subject=${subject}&body=${body}`;
+                
+                // メールアプリを開く
+                window.location.href = mailtoLink;
+                
+                // 送信後、履歴に保存
+                saveToHistory({
+                    reporterName,
+                    bugLocation,
+                    bugDescription,
+                    date: new Date().toISOString()
+                });
+                
+                // 3秒後にフォームをクリア
+                setTimeout(() => {
+                    if (confirm('バグ報告のメールを送信しましたか？\n\n送信した場合は「OK」を押してください。フォームがクリアされます。')) {
+                        document.getElementById('bugReportForm').reset();
+                        alert('ありがとうございました！');
+                    }
+                }, 3000);
             });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `bug_report_${bugReport.id}_${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
 
-        function saveToHistory(bugReport) {
+        function saveToHistory(report) {
             const history = JSON.parse(localStorage.getItem('bugReportHistory') || '[]');
-            history.unshift(bugReport);
+            history.unshift(report);
             
-            // 最新20件のみ保持
             if (history.length > 20) {
                 history.splice(20);
             }
@@ -651,48 +403,8 @@
             localStorage.setItem('bugReportHistory', JSON.stringify(history));
         }
 
-        function loadReportHistory() {
-            const history = JSON.parse(localStorage.getItem('bugReportHistory') || '[]');
-            const listElement = document.getElementById('historyList');
-            
-            if (history.length === 0) {
-                listElement.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">報告履歴はありません</p>';
-                return;
-            }
-            
-            listElement.innerHTML = history.map(report => {
-                const date = new Date(report.reportDate);
-                const severityClass = `severity-${report.severity}`;
-                const severityText = {
-                    critical: '致命的',
-                    high: '高',
-                    medium: '中',
-                    low: '低'
-                }[report.severity] || report.severity;
-                
-                return `
-                    <div class="history-item">
-                        <div class="history-header">
-                            <div>
-                                <span class="history-severity ${severityClass}">${severityText}</span>
-                                <span class="history-title">${report.bugTitle}</span>
-                            </div>
-                            <span class="history-date">${date.toLocaleDateString('ja-JP')}</span>
-                        </div>
-                        <div style="font-size: 13px; color: #666;">
-                            ${report.bugLocation} | ${report.reporterName}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function showAlert(type, message) {
-            const alertId = type === 'success' ? 'alertSuccess' : 'alertError';
-            const alertElement = document.getElementById(alertId);
-            
-            document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
-            
+        function showAlert(message) {
+            const alertElement = document.getElementById('alertError');
             alertElement.textContent = message;
             alertElement.style.display = 'block';
             
