@@ -41,18 +41,6 @@
             font-size: 1.5em;
         }
 
-        .reload-notice {
-            background: #fff3cd;
-            border-left: 5px solid #ffc107;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            color: #856404;
-            text-align: center;
-            font-weight: 600;
-        }
-
         .customer-info {
             background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
             padding: 12px;
@@ -116,6 +104,11 @@
         .tools button:hover {
             background: #764ba2;
             transform: translateY(-2px);
+        }
+
+        .tools button.active {
+            background: #764ba2;
+            box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
         }
 
         .color-palette {
@@ -270,6 +263,14 @@
             transform: translateY(-2px);
         }
 
+        .clear-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        }
+
+        .clear-btn:hover {
+            background: linear-gradient(135deg, #e082ea 0%, #e4465b 100%) !important;
+        }
+
         .undo-counter {
             background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
             color: #1976d2;
@@ -306,6 +307,17 @@
             border-radius: 5px;
         }
 
+        .loading-indicator {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 13px;
+            color: #856404;
+        }
+
         @media (min-width: 768px) {
             h1 {
                 font-size: 2em;
@@ -326,8 +338,8 @@
     <div class="container">
         <h1>🎨 Crine Free 描画アプリ</h1>
 
-        <div class="reload-notice">
-            ⚠️ イラストが正常に表示されない場合は、アドレスバーから再読み込みをお願いします
+        <div class="loading-indicator" id="loadingIndicator">
+            📥 画像を読み込んでいます...
         </div>
 
         <div class="ad-container">
@@ -353,9 +365,9 @@
         </div>
 
         <div class="tools">
-            <button onclick="setTool('pen')">🖊️ ペン</button>
-            <button onclick="setTool('eraser')">🧹 消しゴム</button>
-            <button onclick="addText()">📝 テキスト追加</button>
+            <button class="active" id="penBtn" onclick="setTool('pen')">🖊️ ペン</button>
+            <button id="eraserBtn" onclick="setTool('eraser')">🧹 消しゴム</button>
+            <button id="textBtn" onclick="addText()">📝 テキスト追加</button>
             
             <div class="color-palette">
                 <div class="color-btn active" style="background: black;" onclick="setColor('black')"></div>
@@ -380,6 +392,7 @@
         <div class="bottom-tools">
             <button onclick="undo()">↶ 戻る</button>
             <button onclick="redo()">↷ やり直し</button>
+            <button class="clear-btn" onclick="clearCurrentView()">🗑️ クリア</button>
             <span class="undo-counter" id="undoCounter">Undo: 0/5回</span>
         </div>
 
@@ -390,18 +403,7 @@
     </div>
 
     <script>
-        function checkAuth() {
-            const authInfo = localStorage.getItem('salonLicense');
-            
-            if (!authInfo) {
-                alert('メインアプリから起動してください');
-                window.location.href = 'index.html';
-                return false;
-            }
-            
-            return true;
-        }
-
+        // グローバル変数
         let canvas, ctx;
         let isDrawing = false;
         let currentTool = 'pen';
@@ -415,11 +417,28 @@
         let longPressTimer = null;
         let longPressStartX = 0;
         let longPressStartY = 0;
-        let isDraggingText = false;
-        let currentTextElement = null;
         const MAX_UNDO = 5;
         const LONG_PRESS_DURATION = 500;
 
+        // 画像キャッシュ
+        let imageCache = {};
+        let imagesLoaded = 0;
+        const totalImages = 9;
+
+        // 認証チェック
+        function checkAuth() {
+            const authInfo = localStorage.getItem('salonLicense');
+            
+            if (!authInfo) {
+                alert('メインアプリから起動してください');
+                window.location.href = 'index.html';
+                return false;
+            }
+            
+            return true;
+        }
+
+        // 初期化
         window.addEventListener('DOMContentLoaded', function() {
             if (!checkAuth()) {
                 return;
@@ -441,18 +460,112 @@
                 textElements[view] = [];
             });
             
+            // 画像プリロード
+            preloadImages();
+            
             setupEventListeners();
             
             const saved = localStorage.getItem('drawing_' + customerId);
             if (saved) {
                 loadDrawing();
-            } else {
-                drawHeadOutline(currentView);
-                saveState();
             }
+            
             updateUndoCounter();
         });
 
+        // 画像プリロード機能
+        function preloadImages() {
+            const imageFiles = {
+                'front': 'images/head-front.svg',
+                'back': 'images/head-back.svg',
+                'left': 'images/head-left.svg',
+                'right': 'images/head-right.svg',
+                'top': 'images/head-top.svg',
+                'diagonal-left': 'images/head-diagonal-left.svg',
+                'diagonal-right': 'images/head-diagonal-right.svg',
+                'diagonal-left-back': 'images/head-diagonal-left-back.svg',
+                'diagonal-right-back': 'images/head-diagonal-right-back.svg'
+            };
+
+            Object.keys(imageFiles).forEach(view => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                
+                img.onload = function() {
+                    imageCache[view] = this;
+                    imagesLoaded++;
+                    console.log(`✅ 画像読み込み成功: ${view} (${imagesLoaded}/${totalImages})`);
+                    
+                    if (imagesLoaded === totalImages) {
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                        console.log('✅ 全画像の読み込み完了');
+                        
+                        // 初期ビュー描画
+                        if (!undoStacks[currentView] || undoStacks[currentView].length === 0) {
+                            drawHeadOutline(currentView);
+                            saveState();
+                        }
+                    }
+                    
+                    // 現在のビューの画像が読み込まれたら即座に表示
+                    if (view === currentView) {
+                        drawHeadOutline(currentView);
+                        if (undoStacks[currentView] && undoStacks[currentView].length === 0) {
+                            saveState();
+                        }
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.error(`❌ 画像読み込み失敗: ${view} - ${imageFiles[view]}`);
+                    imagesLoaded++;
+                    
+                    if (imagesLoaded === totalImages) {
+                        document.getElementById('loadingIndicator').innerHTML = 
+                            '⚠️ 一部の画像が読み込めませんでした。ページを再読み込みしてください。';
+                        document.getElementById('loadingIndicator').style.background = '#f8d7da';
+                        document.getElementById('loadingIndicator').style.borderColor = '#dc3545';
+                        document.getElementById('loadingIndicator').style.color = '#721c24';
+                    }
+                };
+                
+                img.src = imageFiles[view] + '?v=' + Date.now();
+            });
+        }
+
+        // 背景画像描画
+        function drawHeadOutline(view) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (imageCache[view]) {
+                const img = imageCache[view];
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.85;
+                const x = (canvas.width - img.width * scale) / 2;
+                const y = (canvas.height - img.height * scale) / 2;
+                
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                console.log(`✅ ビュー描画完了: ${view}`);
+            } else {
+                // 画像が未ロードの場合はプレースホルダー
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = '#dee2e6';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+                
+                ctx.fillStyle = '#6c757d';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('📥 画像読み込み中...', canvas.width / 2, canvas.height / 2);
+                
+                console.warn(`⚠️ 画像未ロード: ${view}`);
+            }
+        }
+
+        // イベントリスナー設定
         function setupEventListeners() {
             canvas.addEventListener('mousedown', handleMouseDown);
             canvas.addEventListener('mousemove', handleMouseMove);
@@ -465,6 +578,7 @@
             document.getElementById('backToMainBtn').addEventListener('click', backToMain);
         }
 
+        // マウス/タッチイベント処理
         function handleMouseDown(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -583,6 +697,72 @@
             isDrawing = false;
         }
 
+        // ビュー切り替え
+        function changeView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (!undoStacks[view]) {
+                undoStacks[view] = [];
+                redoStacks[view] = [];
+                textElements[view] = [];
+            }
+            
+            if (undoStacks[view].length > 0) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = undoStacks[view][undoStacks[view].length - 1];
+            } else {
+                drawHeadOutline(view);
+                saveState();
+            }
+            
+            renderTextElements();
+            updateUndoCounter();
+        }
+
+        // 現在のビューをクリア
+        function clearCurrentView() {
+            if (confirm(`現在の「${getViewName(currentView)}」ビューの描画内容を全て削除しますか?\n\n※この操作は取り消せません`)) {
+                // キャンバスをクリアして背景画像を再描画
+                drawHeadOutline(currentView);
+                
+                // Undo履歴をクリア（初期状態のみ残す）
+                undoStacks[currentView] = [];
+                redoStacks[currentView] = [];
+                
+                // テキスト要素をクリア
+                textElements[currentView] = [];
+                renderTextElements();
+                
+                // 新しい初期状態を保存
+                saveState();
+                
+                alert('✅ クリアしました');
+            }
+        }
+
+        // ビュー名取得
+        function getViewName(view) {
+            const viewNames = {
+                'front': '正面',
+                'back': '後ろ',
+                'left': '左側面',
+                'right': '右側面',
+                'top': '上から',
+                'diagonal-left': '斜め左',
+                'diagonal-right': '斜め右',
+                'diagonal-left-back': '斜め左後ろ',
+                'diagonal-right-back': '斜め右後ろ'
+            };
+            return viewNames[view] || view;
+        }
+
+        // テキスト入力ダイアログ表示
         function showTextInput(x, y) {
             const container = document.getElementById('canvasContainer');
             
@@ -625,6 +805,7 @@
             });
         }
 
+        // テキスト要素作成
         function createTextElement(text, x, y) {
             const container = document.getElementById('canvasContainer');
             
@@ -665,6 +846,7 @@
             });
         }
 
+        // テキスト要素削除
         function deleteTextElement(element, text) {
             if (textElements[currentView]) {
                 textElements[currentView] = textElements[currentView].filter(t => t.text !== text);
@@ -672,10 +854,10 @@
             element.remove();
         }
 
+        // テキストドラッグ可能に
         function makeTextDraggable(el) {
             let startX, startY, initialLeft, initialTop;
             let isDragging = false;
-            let hasMoved = false;
             
             const textContent = el.querySelector('span:not(.delete-text)');
             
@@ -683,7 +865,6 @@
             textContent.addEventListener('touchstart', dragStart, {passive: false});
             
             function dragStart(e) {
-                hasMoved = false;
                 isDragging = true;
                 const rect = el.getBoundingClientRect();
                 const containerRect = document.getElementById('canvasContainer').getBoundingClientRect();
@@ -722,10 +903,6 @@
                 const deltaX = clientX - startX;
                 const deltaY = clientY - startY;
                 
-                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-                    hasMoved = true;
-                }
-                
                 el.style.left = (initialLeft + deltaX) + 'px';
                 el.style.top = (initialTop + deltaY) + 'px';
             }
@@ -739,108 +916,7 @@
             }
         }
 
-        function drawHeadOutline(view) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            const imageFiles = {
-                'front': 'images/head-front.svg',
-                'back': 'images/head-back.svg',
-                'left': 'images/head-left.svg',
-                'right': 'images/head-right.svg',
-                'top': 'images/head-top.svg',
-                'diagonal-left': 'images/head-diagonal-left.svg',
-                'diagonal-right': 'images/head-diagonal-right.svg',
-                'diagonal-left-back': 'images/head-diagonal-left-back.svg',
-                'diagonal-right-back': 'images/head-diagonal-right-back.svg'
-            };
-            
-            const imageFile = imageFiles[view];
-            
-            if (imageFile) {
-                const img = new Image();
-                
-                img.onload = function() {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.85;
-                    const x = (canvas.width - img.width * scale) / 2;
-                    const y = (canvas.height - img.height * scale) / 2;
-                    
-                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                    
-                    console.log(`✅ 画像読み込み成功: ${imageFile}`);
-                };
-                
-                img.onerror = function() {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#f8f9fa';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    ctx.strokeStyle = '#dee2e6';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-                    
-                    ctx.fillStyle = '#6c757d';
-                    ctx.font = 'bold 16px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('⚠️ 画像が見つかりません', canvas.width / 2, canvas.height / 2 - 30);
-                    
-                    ctx.font = '14px sans-serif';
-                    ctx.fillStyle = '#868e96';
-                    ctx.fillText('アドレスバーから再読み込みしてください', canvas.width / 2, canvas.height / 2 + 10);
-                    
-                    console.error(`❌ 画像読み込み失敗: ${imageFile}`);
-                };
-                
-                img.src = imageFile;
-            } else {
-                ctx.fillStyle = '#f8f9fa';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#999';
-                ctx.font = '14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('この視点は未設定です', canvas.width / 2, canvas.height / 2);
-                
-                console.warn(`⚠️ 未定義の視点: ${view}`);
-            }
-        }
-
-        function changeView(view) {
-            currentView = view;
-            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (!undoStacks[view]) {
-                undoStacks[view] = [];
-                redoStacks[view] = [];
-                textElements[view] = [];
-            }
-            
-            if (undoStacks[view].length > 0) {
-                const img = new Image();
-                img.onload = function() {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-                img.src = undoStacks[view][undoStacks[view].length - 1];
-            } else {
-                drawHeadOutline(view);
-                saveState();
-            }
-            
-            renderTextElements();
-            updateUndoCounter();
-        }
-
-        function addText() {
-            alert('キャンバスを長押し（0.5秒）してテキストを追加してください');
-        }
-
+        // テキスト要素レンダリング
         function renderTextElements() {
             const container = document.getElementById('canvasContainer');
             document.querySelectorAll('.text-overlay').forEach(el => el.remove());
@@ -878,6 +954,36 @@
             }
         }
 
+        // ツール設定
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tools button').forEach(btn => btn.classList.remove('active'));
+            if (tool === 'pen') document.getElementById('penBtn').classList.add('active');
+            if (tool === 'eraser') document.getElementById('eraserBtn').classList.add('active');
+            if (tool === 'text') document.getElementById('textBtn').classList.add('active');
+        }
+
+        // 色設定
+        function setColor(color) {
+            currentColor = color;
+            currentTool = 'pen';
+            setTool('pen');
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // 線幅更新
+        function updateLineWidth(value) {
+            lineWidth = parseInt(value);
+            document.getElementById('widthValue').textContent = value + 'px';
+        }
+
+        // テキスト追加
+        function addText() {
+            alert('キャンバスを長押し（0.5秒）してテキストを追加してください');
+        }
+
+        // 状態保存
         function saveState() {
             if (!undoStacks[currentView]) undoStacks[currentView] = [];
             
@@ -890,6 +996,7 @@
             updateUndoCounter();
         }
 
+        // Undo
         function undo() {
             if (!undoStacks[currentView] || undoStacks[currentView].length <= 1) {
                 alert('これ以上戻せません（Crine Free版：最大5回まで）');
@@ -905,6 +1012,7 @@
             updateUndoCounter();
         }
 
+        // Redo
         function redo() {
             if (!redoStacks[currentView] || redoStacks[currentView].length === 0) {
                 alert('やり直せません');
@@ -921,27 +1029,13 @@
             updateUndoCounter();
         }
 
+        // Undoカウンター更新
         function updateUndoCounter() {
             const count = undoStacks[currentView] ? Math.max(0, undoStacks[currentView].length - 1) : 0;
             document.getElementById('undoCounter').textContent = `Undo: ${count}/${MAX_UNDO}回`;
         }
 
-        function setTool(tool) {
-            currentTool = tool;
-        }
-
-        function setColor(color) {
-            currentColor = color;
-            currentTool = 'pen';
-            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-        }
-
-        function updateLineWidth(value) {
-            lineWidth = parseInt(value);
-            document.getElementById('widthValue').textContent = value + 'px';
-        }
-
+        // 描画保存
         function saveDrawing() {
             const data = {
                 customerId: customerId,
@@ -951,9 +1045,10 @@
             };
             
             localStorage.setItem('drawing_' + customerId, JSON.stringify(data));
-            alert('描画を保存しました！');
+            alert('✅ 描画を保存しました！');
         }
 
+        // 描画読み込み
         function loadDrawing() {
             const saved = localStorage.getItem('drawing_' + customerId);
             if (saved) {
@@ -983,10 +1078,16 @@
             }
         }
 
+        // カルテに戻る
         function backToMain() {
             saveDrawing();
             window.location.href = 'index.html?id=' + customerId;
         }
+
+        // ページ離脱時に自動保存
+        window.addEventListener('beforeunload', function() {
+            saveDrawing();
+        });
     </script>
 </body>
 </html>
