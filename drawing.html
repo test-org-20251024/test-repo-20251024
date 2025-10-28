@@ -82,6 +82,56 @@
             margin-bottom: 5px;
         }
 
+        .reload-notice {
+            background: #f8d7da;
+            border-left: 5px solid #dc3545;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #721c24;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        .reload-notice h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #721c24;
+        }
+
+        .reload-notice strong {
+            color: #dc3545;
+            font-size: 15px;
+        }
+
+        .reload-steps {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .reload-steps ol {
+            margin-left: 20px;
+        }
+
+        .reload-steps li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.85;
+            }
+        }
+
         .view-selector {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -264,6 +314,12 @@
                 padding: 12px;
                 margin: 10px;
             }
+
+            .reload-notice {
+                font-size: 13px;
+                padding: 12px;
+                margin: 10px;
+            }
         }
     </style>
 </head>
@@ -279,10 +335,28 @@
             <ul>
                 <li><strong>保存を忘れずに：</strong>描画後は必ず「💾 保存」ボタンを押してください</li>
                 <li><strong>ビュー切り替え時：</strong>別の角度に切り替えると自動保存されます</li>
-                <li><strong>iPadでの表示問題：</strong>イラストが表示されない場合は、ブラウザを再読み込み（更新ボタン）してください</li>
+                <li><strong>iPadでの表示問題：</strong>イラストが表示されない場合は下記の方法で再読み込みしてください</li>
                 <li><strong>描画のコツ：</strong>指またはペンで直接画面をタッチして描画できます</li>
                 <li><strong>取り消し機能：</strong>間違えた場合は「↶ 戻る」ボタンで1つ前に戻れます</li>
             </ul>
+        </div>
+
+        <div class="reload-notice" id="reloadNotice">
+            <h3>🔄 頭部イラストが表示されない場合</h3>
+            <p><strong>アドレスバーから強制再読み込みを実行してください：</strong></p>
+            <div class="reload-steps">
+                <ol>
+                    <li><strong>iPhone/iPad (Safari)</strong><br>
+                        アドレスバーの🔄（更新ボタン）を長押し → 「デスクトップ用Webサイトを表示」をタップ</li>
+                    <li><strong>または、</strong><br>
+                        アドレスバーをタップ → キーボードの「開く」をタップ</li>
+                    <li><strong>Android (Chrome)</strong><br>
+                        メニュー（⋮）→「デスクトップサイト」にチェック</li>
+                    <li><strong>PC (全ブラウザ)</strong><br>
+                        Ctrl + Shift + R (Windows)<br>
+                        Command + Shift + R (Mac)</li>
+                </ol>
+            </div>
         </div>
 
         <div class="view-selector" id="viewSelector"></div>
@@ -336,6 +410,8 @@
         let customerId = null;
         let drawingHistory = {};
         let currentStrokes = [];
+        let imageLoadAttempts = 0;
+        const MAX_LOAD_ATTEMPTS = 3;
 
         const views = [
             { id: 'front', label: '正面', file: 'head-front.svg' },
@@ -447,8 +523,26 @@
             if (!view) return;
             
             const img = document.getElementById('headSvg');
+            const reloadNotice = document.getElementById('reloadNotice');
+            
+            img.onload = function() {
+                console.log('SVG読み込み成功:', view.file);
+                imageLoadAttempts = 0;
+                reloadNotice.style.display = 'none';
+                loadViewDrawing(viewId);
+            };
+            
+            img.onerror = function() {
+                console.error('SVG読み込み失敗:', view.file);
+                imageLoadAttempts++;
+                
+                if (imageLoadAttempts >= MAX_LOAD_ATTEMPTS) {
+                    reloadNotice.style.display = 'block';
+                    window.scrollTo({ top: reloadNotice.offsetTop - 100, behavior: 'smooth' });
+                }
+            };
+            
             img.src = `images/${view.file}`;
-            img.onload = () => loadViewDrawing(viewId);
         }
 
         function saveCurrentDrawing() {
