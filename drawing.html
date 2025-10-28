@@ -41,15 +41,16 @@
             font-size: 1.5em;
         }
 
-        .free-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #48c6ef, #6f86d6);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-left: 10px;
+        .reload-notice {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #856404;
+            text-align: center;
+            font-weight: 600;
         }
 
         .customer-info {
@@ -325,6 +326,10 @@
     <div class="container">
         <h1>🎨 Crine Free 描画アプリ</h1>
 
+        <div class="reload-notice">
+            ⚠️ イラストが正常に表示されない場合は、アドレスバーから再読み込みをお願いします
+        </div>
+
         <div class="ad-container">
             <div class="ad-content">
                 <p style="color: #6c757d; font-size: 12px;">📢 広告スペース</p>
@@ -343,6 +348,8 @@
             <button class="view-btn" onclick="changeView('top')">上から</button>
             <button class="view-btn" onclick="changeView('diagonal-left')">斜め左</button>
             <button class="view-btn" onclick="changeView('diagonal-right')">斜め右</button>
+            <button class="view-btn" onclick="changeView('diagonal-left-back')">斜め左後ろ</button>
+            <button class="view-btn" onclick="changeView('diagonal-right-back')">斜め右後ろ</button>
         </div>
 
         <div class="tools">
@@ -427,7 +434,7 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             
-            const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right'];
+            const views = ['front', 'back', 'left', 'right', 'top', 'diagonal-left', 'diagonal-right', 'diagonal-left-back', 'diagonal-right-back'];
             views.forEach(view => {
                 undoStacks[view] = [];
                 redoStacks[view] = [];
@@ -735,197 +742,71 @@
         function drawHeadOutline(view) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
             ctx.fillStyle = 'white';
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            if (view === 'front') {
-                ctx.beginPath();
-                ctx.ellipse(centerX, centerY, 90, 120, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+            const imageFiles = {
+                'front': 'images/head-front.svg',
+                'back': 'images/head-back.svg',
+                'left': 'images/head-left.svg',
+                'right': 'images/head-right.svg',
+                'top': 'images/head-top.svg',
+                'diagonal-left': 'images/head-diagonal-left.svg',
+                'diagonal-right': 'images/head-diagonal-right.svg',
+                'diagonal-left-back': 'images/head-diagonal-left-back.svg',
+                'diagonal-right-back': 'images/head-diagonal-right-back.svg'
+            };
+            
+            const imageFile = imageFiles[view];
+            
+            if (imageFile) {
+                const img = new Image();
                 
-                ctx.beginPath();
-                ctx.ellipse(centerX - 90, centerY, 30, 18, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX - 90, centerY, 18, 11, 0, 0, Math.PI * 2);
-                ctx.stroke();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.85;
+                    const x = (canvas.width - img.width * scale) / 2;
+                    const y = (canvas.height - img.height * scale) / 2;
+                    
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                    
+                    console.log(`✅ 画像読み込み成功: ${imageFile}`);
+                };
                 
-                ctx.beginPath();
-                ctx.ellipse(centerX + 90, centerY, 30, 18, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX + 90, centerY, 18, 11, 0, 0, Math.PI * 2);
-                ctx.stroke();
+                img.onerror = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#f8f9fa';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.strokeStyle = '#dee2e6';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+                    
+                    ctx.fillStyle = '#6c757d';
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⚠️ 画像が見つかりません', canvas.width / 2, canvas.height / 2 - 30);
+                    
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#868e96';
+                    ctx.fillText('アドレスバーから再読み込みしてください', canvas.width / 2, canvas.height / 2 + 10);
+                    
+                    console.error(`❌ 画像読み込み失敗: ${imageFile}`);
+                };
                 
-                ctx.beginPath();
-                ctx.ellipse(centerX, centerY + 72, 9, 6, 0, 0, Math.PI * 2);
-                ctx.fillStyle = '#333';
-                ctx.fill();
+                img.src = imageFile;
+            } else {
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#999';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('この視点は未設定です', canvas.width / 2, canvas.height / 2);
                 
-            } else if (view === 'back') {
-                ctx.beginPath();
-                ctx.ellipse(centerX, centerY, 90, 120, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX - 96, centerY + 6, 15, 27, -0.3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX + 96, centerY + 6, 15, 27, 0.3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-            } else if (view === 'left' || view === 'right') {
-                ctx.beginPath();
-                ctx.ellipse(centerX, centerY, 60, 120, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                const earX = view === 'left' ? centerX - 60 : centerX + 60;
-                ctx.beginPath();
-                ctx.ellipse(earX, centerY, 21, 36, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(earX, centerY, 12, 24, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                const noseDir = view === 'left' ? 1 : -1;
-                ctx.beginPath();
-                ctx.moveTo(centerX + (noseDir * 48), centerY + 6);
-                ctx.lineTo(centerX + (noseDir * 63), centerY + 18);
-                ctx.lineTo(centerX + (noseDir * 48), centerY + 24);
-                ctx.closePath();
-                ctx.fillStyle = '#e0e0e0';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-                
-            } else if (view === 'top') {
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, 90, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX - 90, centerY, 18, 30, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX - 90, centerY, 11, 18, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX + 90, centerY, 18, 30, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX + 90, centerY, 11, 18, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 30, centerY - 18, 9, 0, Math.PI * 2);
-                ctx.arc(centerX + 30, centerY - 18, 9, 0, Math.PI * 2);
-                ctx.fillStyle = 'white';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 30, centerY - 18, 5, 0, Math.PI * 2);
-                ctx.arc(centerX + 30, centerY - 18, 5, 0, Math.PI * 2);
-                ctx.fillStyle = '#333';
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY + 12);
-                ctx.lineTo(centerX - 5, centerY + 23);
-                ctx.lineTo(centerX + 5, centerY + 23);
-                ctx.closePath();
-                ctx.fillStyle = '#e0e0e0';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-                
-            } else if (view === 'diagonal-left') {
-                ctx.beginPath();
-                ctx.ellipse(centerX - 12, centerY, 84, 117, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX - 96, centerY, 18, 33, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX - 96, centerY, 11, 21, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 36, centerY - 18, 8, 0, Math.PI * 2);
-                ctx.arc(centerX + 18, centerY - 17, 7, 0, Math.PI * 2);
-                ctx.fillStyle = 'white';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 36, centerY - 18, 4, 0, Math.PI * 2);
-                ctx.arc(centerX + 18, centerY - 17, 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#333';
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.moveTo(centerX + 9, centerY + 15);
-                ctx.quadraticCurveTo(centerX + 7, centerY + 21, centerX + 11, centerY + 24);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
-            } else if (view === 'diagonal-right') {
-                ctx.beginPath();
-                ctx.ellipse(centerX + 12, centerY, 84, 117, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.ellipse(centerX + 96, centerY, 18, 33, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.ellipse(centerX + 96, centerY, 11, 21, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 18, centerY - 17, 7, 0, Math.PI * 2);
-                ctx.arc(centerX + 36, centerY - 18, 8, 0, Math.PI * 2);
-                ctx.fillStyle = 'white';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.arc(centerX - 18, centerY - 17, 4, 0, Math.PI * 2);
-                ctx.arc(centerX + 36, centerY - 18, 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#333';
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.moveTo(centerX - 9, centerY + 15);
-                ctx.quadraticCurveTo(centerX - 7, centerY + 21, centerX - 11, centerY + 24);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                console.warn(`⚠️ 未定義の視点: ${view}`);
             }
         }
 
