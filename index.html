@@ -100,8 +100,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: l
 <div class="form-group"><label>年齢</label><input type="number" id="customerAge" placeholder="25"></div>
 <div class="form-group"><label>来店日 *</label><input type="date" id="visitDate"></div>
 </div>
-<div class="form-group"><label>毛質</label><input type="text" id="hairType" placeholder="例: 硬毛・軟毛・普通"></div>
-<div class="form-group"><label>備考</label><textarea id="customerNotes" rows="3" placeholder="お客様に関する特記事項（アレルギー、好みなど）"></textarea></div>
 <div class="form-group"><label>担当スタイリスト</label><input type="text" id="stylistName" placeholder="田中"></div>
 </div>
 <div class="section">
@@ -143,30 +141,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: l
 </div>
 <div class="section">
 <h3>🌀 パーマ詳細記録</h3>
-<div class="form-group"><label>💊 薬剤</label><textarea id="chemical" rows="2"></textarea></div>
+<div class="form-group"><label>💊 薬剤</label><textarea id="chemical" rows="2" placeholder="使用した薬剤名"></textarea></div>
 <div class="detail-box">
-<h4>🎯 ロッド詳細（部位別16箇所）</h4>
+<h4>🎯 ロッド詳細（部位別6箇所）</h4>
 <div class="rod-grid">
-<div class="form-group"><label>前髪</label><input type="text" id="rod0"></div>
-<div class="form-group"><label>フロント</label><input type="text" id="rod1"></div>
-<div class="form-group"><label>右サイド上</label><input type="text" id="rod2"></div>
-<div class="form-group"><label>右サイド下</label><input type="text" id="rod3"></div>
-<div class="form-group"><label>左サイド上</label><input type="text" id="rod4"></div>
-<div class="form-group"><label>左サイド下</label><input type="text" id="rod5"></div>
-<div class="form-group"><label>トップ</label><input type="text" id="rod6"></div>
-<div class="form-group"><label>クラウン</label><input type="text" id="rod7"></div>
-<div class="form-group"><label>バック</label><input type="text" id="rod8"></div>
-<div class="form-group"><label>右バックサイド上</label><input type="text" id="rod9"></div>
-<div class="form-group"><label>右バックサイド下</label><input type="text" id="rod10"></div>
-<div class="form-group"><label>左バックサイド上</label><input type="text" id="rod11"></div>
-<div class="form-group"><label>左バックサイド下</label><input type="text" id="rod12"></div>
-<div class="form-group"><label>ネープ</label><input type="text" id="rod13"></div>
-<div class="form-group"><label>右ネープ</label><input type="text" id="rod14"></div>
-<div class="form-group"><label>左ネープ</label><input type="text" id="rod15"></div>
+<div class="form-group"><label>フロント</label><input type="text" id="rod0" placeholder="ロッド・巻き方"></div>
+<div class="form-group"><label>トップ</label><input type="text" id="rod1" placeholder="ロッド・巻き方"></div>
+<div class="form-group"><label>クラウン</label><input type="text" id="rod2" placeholder="ロッド・巻き方"></div>
+<div class="form-group"><label>ネープ</label><input type="text" id="rod3" placeholder="ロッド・巻き方"></div>
+<div class="form-group"><label>サイド</label><input type="text" id="rod4" placeholder="ロッド・巻き方"></div>
+<div class="form-group"><label>バックサイド</label><input type="text" id="rod5" placeholder="ロッド・巻き方"></div>
 </div>
 </div>
-<div class="form-group"><label>放置時間</label><input type="text" id="processTime"></div>
-<div class="form-group"><label>仕上がり状態</label><input type="text" id="finishState"></div>
+<div class="form-row">
+<div class="form-group"><label>放置時間（1液）</label><input type="text" id="processTime1" placeholder="例: 15分"></div>
+<div class="form-group"><label>放置時間（2液）</label><input type="text" id="processTime2" placeholder="例: 10分"></div>
+<div class="form-group"><label>仕上がり状態</label><input type="text" id="finishState" placeholder="カール具合など"></div>
+</div>
+<div class="form-group"><label>備考</label><textarea id="permNotes" rows="3" placeholder="その他の情報"></textarea></div>
 </div>
 <div class="section">
 <h3>📝 備考</h3>
@@ -245,7 +237,7 @@ let customers = [];
 let currentCustomerId = null;
 const MAX_CUSTOMERS = 10;
 const MAX_BROWSER_STORAGE = 20;
-const rodPositions = ['前髪','フロント','右サイド上','右サイド下','左サイド上','左サイド下','トップ','クラウン','バック','右バックサイド上','右バックサイド下','左バックサイド上','左バックサイド下','ネープ','右ネープ','左ネープ'];
+const rodPositions = ['フロント','トップ','クラウン','ネープ','サイド','バックサイド'];
 
 window.onload = function() {
     if (!checkAuth()) return;
@@ -328,8 +320,6 @@ async function saveCustomer() {
         name,
         age: document.getElementById('customerAge').value,
         date,
-        hairType: document.getElementById('hairType').value,
-        customerNotes: document.getElementById('customerNotes').value,
         stylist: document.getElementById('stylistName').value,
         menus,
         price: document.getElementById('servicePrice').value,
@@ -344,8 +334,10 @@ async function saveCustomer() {
         spaNote: document.getElementById('spaNote').value,
         chemical: document.getElementById('chemical').value,
         rods,
-        processTime: document.getElementById('processTime').value,
+        processTime1: document.getElementById('processTime1').value,
+        processTime2: document.getElementById('processTime2').value,
         finishState: document.getElementById('finishState').value,
+        permNotes: document.getElementById('permNotes').value,
         notes1: document.getElementById('notes1').value,
         notes2: document.getElementById('notes2').value,
         timestamp: new Date().toISOString(),
@@ -501,8 +493,6 @@ function loadCustomerData(d) {
     document.getElementById('customerName').value = d.name || '';
     document.getElementById('customerAge').value = d.age || '';
     document.getElementById('visitDate').value = d.date || '';
-    document.getElementById('hairType').value = d.hairType || '';
-    document.getElementById('customerNotes').value = d.customerNotes || '';
     document.getElementById('stylistName').value = d.stylist || '';
     document.querySelectorAll('input[type="checkbox"]').forEach(c => {
         c.checked = d.menus && d.menus.includes(c.value);
@@ -524,8 +514,10 @@ function loadCustomerData(d) {
             if (inp) inp.value = r.rod || '';
         });
     }
-    document.getElementById('processTime').value = d.processTime || '';
+    document.getElementById('processTime1').value = d.processTime1 || '';
+    document.getElementById('processTime2').value = d.processTime2 || '';
     document.getElementById('finishState').value = d.finishState || '';
+    document.getElementById('permNotes').value = d.permNotes || '';
     document.getElementById('notes1').value = d.notes1 || '';
     document.getElementById('notes2').value = d.notes2 || '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
